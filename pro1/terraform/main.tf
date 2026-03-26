@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
 provider "aws" {
   region = "us-east-1"
 }
@@ -11,7 +20,6 @@ module "vpc" {
   public_subnets  = ["10.0.1.0/24", "10.0.2.0/24"]
   enable_dns_hostnames   = true
   enable_dns_support     = true
-  enable_internet_gateway = true
   public_subnet_tags = {
     "kubernetes.io/role/elb" = 1
   }
