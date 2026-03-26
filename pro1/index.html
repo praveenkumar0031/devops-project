@@ -1,246 +1,256 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Simple Pong Game</title>
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background: #111;
-            color: #fff;
-            margin: 0;
-            height: 100vh;
-            font-family: Arial, sans-serif;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ping Pong Game</title>
 
-        h1 {
-            margin-top: 25px;
-            letter-spacing: 2px;
-        }
+<style>
+body {
+    margin: 0;
+    text-align: center;
+    background: radial-gradient(circle, #0f2027, #203a43, #2c5364);
+    color: white;
+    font-family: Arial;
+}
 
-        canvas {
-            border: 2px solid #fff;
-            border-radius: 10px;
-            background: #222;
-            box-shadow: 0 0 20px #000;
-        }
+canvas {
+    display: block;
+    margin: auto;
+    background: black;
+    border-radius: 10px;
+    box-shadow: 0 0 25px cyan;
+}
 
-        /* Start Button */
-        #startBtn {
-            padding: 12px 28px;
-            font-size: 20px;
-            font-weight: bold;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            background: #00c853;
-            color: white;
-            margin-bottom: 15px;
-            transition: 0.2s;
-        }
-
-        #startBtn:hover {
-            background: #00e676;
-        }
-    </style>
+button {
+    margin: 5px;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    background: #00c6ff;
+    color: white;
+    cursor: pointer;
+}
+</style>
 </head>
+
 <body>
-    <h1>Simple Pong</h1>
 
-    <!-- Start Button -->
-    <button id="startBtn">Start Game</button>
+<h2>🎮 Ping Pong Game</h2>
 
-    <canvas id="pong" width="800" height="500"></canvas>
+<div>
+    <button id="startBtn" onclick="startGame()">Start</button>
+    <button id="pauseBtn" onclick="pauseGame()" style="display:none;">Pause</button>
+    <button id="resumeBtn" onclick="resumeGame()" style="display:none;">Resume</button>
 
-    <script>
-        const canvas = document.getElementById('pong');
-        const ctx = canvas.getContext('2d');
+    <p id="score">Score: 0</p>
+    <p id="lives">Lives: ❤️❤️❤️</p>
+</div>
 
-        // Canvas dimensions
-        const W = canvas.width;
-        const H = canvas.height;
+<canvas id="game"></canvas>
 
-        // Paddle properties
-        const paddleWidth = 15;
-        const paddleHeight = 100;
-        const paddleSpeed = 6;
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-        // Ball properties
-        const ballRadius = 12;
-        let ballX = W / 2;
-        let ballY = H / 2;
-        let ballSpeedX = 6 * (Math.random() > 0.5 ? 1 : -1);
-        let ballSpeedY = 4 * (Math.random() > 0.5 ? 1 : -1);
+let mode = localStorage.getItem("mode") || "vertical";
 
-        // Paddle positions
-        let leftPaddleY = (H - paddleHeight) / 2;
-        let rightPaddleY = (H - paddleHeight) / 2;
+canvas.width = window.innerWidth * 0.6;
+canvas.height = window.innerHeight * 0.7;
 
-        // Scores
-        let leftScore = 0;
-        let rightScore = 0;
+let paddle, bot, ball;
+let running = false, paused = false;
+let score = 0;
+let lives = 3;
 
-        // Game state
-        let gameStarted = false;
-        let gameOver = false;
-        let gameMessage = "";
-        const startBtn = document.getElementById("startBtn");
+const startBtn = document.getElementById("startBtn");
+const pauseBtn = document.getElementById("pauseBtn");
+const resumeBtn = document.getElementById("resumeBtn");
 
-        // Start Game Button
-        startBtn.addEventListener("click", () => {
-            gameStarted = true;
-            startBtn.style.display = "none";  // Hide start button
-        });
+// Init
+function init() {
+    if (mode === "vertical") {
+        paddle = { x: canvas.width/2-60, y: canvas.height-20, w:120, h:10 };
+        bot = { x: canvas.width/2-60, y:10, w:120, h:10 };
+    } else {
+        paddle = { x: canvas.width-20, y: canvas.height/2-60, w:10, h:120 };
+        bot = { x: 10, y: canvas.height/2-60, w:10, h:120 };
+    }
 
-        // Mouse control for left paddle
-        canvas.addEventListener("mousemove", e => {
-            const rect = canvas.getBoundingClientRect();
-            const mouseY = e.clientY - rect.top;
-            leftPaddleY = Math.min(Math.max(mouseY - paddleHeight / 2, 0), H - paddleHeight);
-        });
+    resetBall();
+}
 
-        // Continue? (Y/N)
-        document.addEventListener("keydown", (e) => {
-            if (!gameOver) return;
+// Reset Ball (used for revive)
+function resetBall() {
+    ball = {
+        x: canvas.width/2,
+        y: canvas.height/2,
+        dx: 2,
+        dy: 2,
+        r: 8
+    };
+}
 
-            if (e.key.toLowerCase() === "y") {
-                gameOver = false;
-                resetBall();
+// Draw
+function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    ctx.fillStyle="cyan";
+    ctx.fillRect(paddle.x,paddle.y,paddle.w,paddle.h);
+
+    ctx.fillStyle="orange";
+    ctx.fillRect(bot.x,bot.y,bot.w,bot.h);
+
+    ctx.beginPath();
+    ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+    ctx.fillStyle="red";
+    ctx.fill();
+}
+
+// Bot AI
+function moveBot() {
+    if (mode === "vertical") {
+        bot.x += (ball.x - bot.x - bot.w/2) * 0.05;
+    } else {
+        bot.y += (ball.y - bot.y - bot.h/2) * 0.05;
+    }
+}
+
+// Update lives UI
+function updateLives() {
+    document.getElementById("lives").innerText = 
+        "Lives: " + "❤️".repeat(lives);
+}
+
+// Loop
+function loop() {
+    if (!running || paused) return;
+
+    moveBot();
+
+    ball.x += ball.dx;
+    ball.y += ball.dy;
+
+    if (ball.x < 0 || ball.x > canvas.width) ball.dx *= -1;
+    if (ball.y < 0) ball.dy *= -1;
+
+    if (mode === "vertical") {
+
+        // MISS → lose life
+        if (ball.y > canvas.height) {
+            lives--;
+            updateLives();
+
+            if (lives === 0) {
+                endGame();
+                return;
             }
 
-            if (e.key.toLowerCase() === "n") {
-                location.reload();
-            }
-        });
-
-        // Draw functions
-        function drawRect(x, y, w, h, color) {
-            ctx.fillStyle = color;
-            ctx.fillRect(x, y, w, h);
+            resetBall(); // revive
         }
 
-        function drawCircle(x, y, radius, color) {
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.arc(x, y, radius, 0, Math.PI * 2);
-            ctx.fill();
+        // Player hit
+        if (ball.y > paddle.y &&
+            ball.x > paddle.x &&
+            ball.x < paddle.x + paddle.w) {
+            ball.dy *= -1;
+            score++;
         }
 
-        function drawText(text, x, y, color) {
-            ctx.fillStyle = color;
-            ctx.font = "32px Arial";
-            ctx.fillText(text, x, y);
+        // Bot hit
+        if (ball.y < bot.y + bot.h &&
+            ball.x > bot.x &&
+            ball.x < bot.x + bot.w) {
+            ball.dy *= -1;
         }
 
-        // Reset ball
-        function resetBall() {
-            ballX = W / 2;
-            ballY = H / 2;
-            ballSpeedX = 6 * (Math.random() > 0.5 ? 1 : -1);
-            ballSpeedY = 4 * (Math.random() > 0.5 ? 1 : -1);
+    } else {
+
+        if (ball.x > canvas.width) {
+            lives--;
+            updateLives();
+
+            if (lives === 0) {
+                endGame();
+                return;
+            }
+
+            resetBall();
         }
 
-        // Stop game on win/lose
-        function freezeGame(message) {
-            gameOver = true;
-            gameMessage = message;
+        if (ball.x > paddle.x &&
+            ball.y > paddle.y &&
+            ball.y < paddle.y + paddle.h) {
+            ball.dx *= -1;
+            score++;
         }
 
-        // Update game
-        function update() {
-            if (gameOver) return;
-
-            // Ball movement
-            ballX += ballSpeedX;
-            ballY += ballSpeedY;
-
-            // Wall bounce
-            if (ballY <= ballRadius || ballY >= H - ballRadius) {
-                ballSpeedY = -ballSpeedY;
-            }
-
-            // Left paddle collision
-            if (
-                ballX - ballRadius <= paddleWidth &&
-                ballY >= leftPaddleY &&
-                ballY <= leftPaddleY + paddleHeight
-            ) {
-                ballSpeedX = -ballSpeedX;
-                let impact = (ballY - (leftPaddleY + paddleHeight / 2)) / (paddleHeight / 2);
-                ballSpeedY += impact * 3;
-            }
-
-            // Right paddle collision
-            if (
-                ballX + ballRadius >= W - paddleWidth &&
-                ballY >= rightPaddleY &&
-                ballY <= rightPaddleY + paddleHeight
-            ) {
-                ballSpeedX = -ballSpeedX;
-                let impact = (ballY - (rightPaddleY + paddleHeight / 2)) / (paddleHeight / 2);
-                ballSpeedY += impact * 3;
-            }
-
-            // AI follow movement
-            let aiCenter = rightPaddleY + paddleHeight / 2;
-            if (aiCenter < ballY - 10) rightPaddleY += paddleSpeed;
-            else if (aiCenter > ballY + 10) rightPaddleY -= paddleSpeed;
-            rightPaddleY = Math.max(0, Math.min(H - paddleHeight, rightPaddleY));
-
-            // Scoring logic
-            if (ballX < 0) {
-                rightScore++;
-                freezeGame("YOU LOST! Continue? (Y/N)");
-            }
-
-            if (ballX > W) {
-                leftScore++;
-                freezeGame("YOU WON! Continue? (Y/N)");
-            }
+        if (ball.x < bot.x + bot.w &&
+            ball.y > bot.y &&
+            ball.y < bot.y + bot.h) {
+            ball.dx *= -1;
         }
+    }
 
-        // Draw everything
-        function draw() {
-            drawRect(0, 0, W, H, "#222");
+    draw();
+    document.getElementById("score").innerText = "Score: " + score;
 
-            // Paddles
-            drawRect(0, leftPaddleY, paddleWidth, paddleHeight, "#fff");
-            drawRect(W - paddleWidth, rightPaddleY, paddleWidth, paddleHeight, "#fff");
+    requestAnimationFrame(loop);
+}
 
-            // Ball
-            drawCircle(ballX, ballY, ballRadius, "#fff");
+// Controls
+canvas.addEventListener("mousemove", e=>{
+    const rect = canvas.getBoundingClientRect();
+    if (mode === "vertical")
+        paddle.x = e.clientX - rect.left - paddle.w/2;
+    else
+        paddle.y = e.clientY - rect.top - paddle.h/2;
+});
 
-            // Center dashed line
-            for (let i = 0; i < H; i += 25) {
-                drawRect(W / 2 - 2, i, 4, 15, "#555");
-            }
+// Buttons
+function startGame(){
+    score = 0;
+    lives = 3;
+    updateLives();
 
-            // Scores
-            drawText(leftScore, W / 4, 50, "#fff");
-            drawText(rightScore, (3 * W) / 4, 50, "#fff");
+    init();
+    running = true;
+    paused = false;
 
-            // Before starting
-            if (!gameStarted) {
-                drawText("CLICK START TO PLAY", W / 2 - 180, H / 2, "#fff");
-            }
+    startBtn.style.display = "none";
+    pauseBtn.style.display = "inline-block";
+    resumeBtn.style.display = "none";
 
-            // Game-over message
-            if (gameOver) {
-                drawText(gameMessage, W / 2 - 250, H / 2, "yellow");
-            }
-        }
+    loop();
+}
 
-        // Main loop
-        function gameLoop() {
-            if (gameStarted) update();
-            draw();
-            requestAnimationFrame(gameLoop);
-        }
+function pauseGame(){
+    paused = true;
+    pauseBtn.style.display = "none";
+    resumeBtn.style.display = "inline-block";
+}
 
-        gameLoop();
-    </script>
+function resumeGame(){
+    paused = false;
+    resumeBtn.style.display = "none";
+    pauseBtn.style.display = "inline-block";
+    loop();
+}
+
+function endGame(){
+    running = false;
+    alert("Game Over! Score: " + score);
+
+    startBtn.style.display = "inline-block";
+    pauseBtn.style.display = "none";
+    resumeBtn.style.display = "none";
+}
+
+// Enter key
+document.addEventListener("keydown", e=>{
+    if(e.key==="Enter") startGame();
+});
+</script>
+
 </body>
 </html>
-
