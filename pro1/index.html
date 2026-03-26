@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -20,7 +21,7 @@ body {
     overflow:hidden;
 }
 
-/* Bubble Animation */
+/* Background bubbles */
 .bg span {
     position:absolute;
     width:20px;
@@ -36,10 +37,8 @@ body {
     to { transform:translateY(-1000px); opacity:0; }
 }
 
-/* Title */
 h1 { margin-bottom:10px; }
 
-/* Controls */
 .controls { margin:10px; }
 
 button {
@@ -52,18 +51,17 @@ button {
     cursor:pointer;
 }
 
-/* Canvas */
 canvas {
     background:black;
     border-radius:12px;
     box-shadow:0 0 25px cyan;
 }
 </style>
+
 </head>
 
 <body>
 
-<!-- Background bubbles -->
 <div class="bg">
     <span style="left:10%"></span>
     <span style="left:20%"></span>
@@ -82,8 +80,11 @@ canvas {
     <button id="pauseBtn" style="display:none;">Pause</button>
     <button id="resumeBtn" style="display:none;">Resume</button>
 
-    <p id="score">Score: 0</p>
-    <p id="lives">Lives: ❤️❤️❤️</p>
+```
+<p id="score">Score: 0</p>
+<p id="lives">Lives: ❤️❤️❤️</p>
+```
+
 </div>
 
 <canvas id="game"></canvas>
@@ -92,9 +93,9 @@ canvas {
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let mode = localStorage.getItem("mode") || "vertical";
+let mode = "vertical";
 
-// PERFECT SIZE FIX
+// Resize canvas
 function resizeCanvas() {
     canvas.width = Math.min(window.innerWidth * 0.7, 800);
     canvas.height = Math.min(window.innerHeight * 0.6, 500);
@@ -102,7 +103,7 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
-let paddle, bot, ball;
+let paddle=null, bot=null, ball=null;
 let running=false, paused=false;
 let score=0, lives=3, startTime=0;
 
@@ -125,7 +126,6 @@ function resetBall(){
     ball={x:canvas.width/2,y:canvas.height/2,dx:2,dy:2,r:8};
 }
 
-// SPEED FIX
 function adjustSpeed(){
     let t=(Date.now()-startTime)/1000;
     let speed = t<10 ? 2 : 4;
@@ -133,7 +133,6 @@ function adjustSpeed(){
     ball.dy=Math.sign(ball.dy)*speed;
 }
 
-// BOT
 function moveBot(){
     if(mode==="vertical"){
         bot.x += (ball.x - bot.x - bot.w/2)*0.08;
@@ -142,7 +141,6 @@ function moveBot(){
     }
 }
 
-// DRAW
 function draw(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
@@ -158,7 +156,6 @@ function draw(){
     ctx.fill();
 }
 
-// LOOP
 function loop(){
     if(!running||paused) return;
 
@@ -199,8 +196,10 @@ function loop(){
     requestAnimationFrame(loop);
 }
 
-// 🔥 FIXED ARROW KEYS (BOUNDARY CONTROL)
+// ✅ SAFE CONTROLS (fixed bug)
 document.addEventListener("keydown", e=>{
+    if(!paddle) return;
+
     if(mode==="vertical"){
         if(e.key==="ArrowLeft"){
             paddle.x -= 20;
@@ -214,26 +213,23 @@ document.addEventListener("keydown", e=>{
     }
 });
 
-// MOUSE CONTROL
+// ✅ SAFE MOUSE CONTROL
 canvas.addEventListener("mousemove", e=>{
-    const rect=canvas.getBoundingClientRect();
-    if(mode==="vertical"){
-        paddle.x=e.clientX-rect.left-paddle.w/2;
+    if(!paddle) return;
 
-        // boundary fix
-        if(paddle.x<0) paddle.x=0;
-        if(paddle.x+paddle.w>canvas.width)
-            paddle.x=canvas.width-paddle.w;
-    }
+    const rect=canvas.getBoundingClientRect();
+    paddle.x=e.clientX-rect.left-paddle.w/2;
+
+    if(paddle.x<0) paddle.x=0;
+    if(paddle.x+paddle.w>canvas.width)
+        paddle.x=canvas.width-paddle.w;
 });
 
-// UI
 function updateLives(){
     document.getElementById("lives").innerText =
         "Lives: " + "❤️".repeat(lives);
 }
 
-// BUTTONS
 startBtn.onclick=()=>{
     score=0; lives=3; startTime=Date.now();
     updateLives();
