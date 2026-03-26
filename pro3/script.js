@@ -1,156 +1,134 @@
-function show(id){
-document.querySelectorAll('.section').forEach(s=>s.style.display='none');
-document.getElementById(id).style.display='block';
+function show(id) {
+    document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+    document.getElementById(id).style.display = 'block';
+    // Clear all game intervals
+    clearInterval(gameInterval);
+    clearInterval(blinkInterval);
 }
 
-/* MEMORY */
-let emojis=["🐶","🐱","🚗","🍎","⚽","🎮","🐼","🍕"];
-let mem=[],flip=[],moves=0,lock=false;
+let gameInterval, blinkInterval;
 
-function startMemory(){
-mem=[...emojis,...emojis].sort(()=>Math.random()-0.5);
-moves=0;flip=[];
-document.getElementById("moves").innerText=0;
-drawMem();
+/* --- 1. DECRYPT DATA (Memory) --- */
+let emojis = ["💾", "📡", "🛡️", "🔑", "💻", "🔌", "📟", "🔋"];
+let mem = [], flip = [], lock = false;
+
+function startMemory() {
+    mem = [...emojis, ...emojis].sort(() => Math.random() - 0.5);
+    flip = []; document.getElementById("moves").innerText = 0;
+    let g = document.getElementById("memoryGrid"); g.innerHTML = "";
+    mem.forEach((e, i) => {
+        let d = document.createElement("div"); d.className = "card"; d.innerText = "?";
+        d.onclick = () => {
+            if (lock || flip.includes(i)) return;
+            d.innerText = mem[i]; flip.push(i);
+            if (flip.length === 2) {
+                lock = true; let [a, b] = flip; let cards = document.querySelectorAll(".card");
+                if (mem[a] === mem[b]) { cards[a].style.opacity = "0.2"; cards[b].style.opacity = "0.2"; flip = []; lock = false; }
+                else { setTimeout(() => { cards[a].innerText = "?"; cards[b].innerText = "?"; flip = []; lock = false; }, 500); }
+            }
+        };
+        g.appendChild(d);
+    });
 }
 
-function drawMem(){
-let g=document.getElementById("memoryGrid");
-g.innerHTML="";
-mem.forEach((e,i)=>{
-let d=document.createElement("div");
-d.className="card";
-d.innerText="?";
-d.onclick=()=>flipCard(d,i);
-g.appendChild(d);
-});
+/* --- 2. QUERY BOT (Fixed Target) --- */
+let targetCode = "";
+const chars = "0123456789ABCDEF!@#$%";
+
+function startQueryBot() {
+    let timeLeft = 20;
+    targetCode = Array.from({length:4}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+    document.getElementById("targetWord").innerText = targetCode;
+    
+    let targetPos = Math.floor(Math.random() * 64);
+    let staticData = Array.from({length:64}, (_, i) => i === targetPos ? targetCode : Array.from({length:4}, () => chars[Math.floor(Math.random()*chars.length)]).join(''));
+
+    clearInterval(gameInterval);
+    clearInterval(blinkInterval);
+
+    gameInterval = setInterval(() => {
+        timeLeft--;
+        document.getElementById("hackTimer").innerText = timeLeft;
+        if(timeLeft <= 0) { clearInterval(gameInterval); clearInterval(blinkInterval); alert("TRACE_DETECTION_FAIL"); }
+    }, 1000);
+
+    blinkInterval = setInterval(() => renderQueryGrid(staticData, targetPos), 150);
 }
 
-function flipCard(el,i){
-if(lock||flip.includes(i))return;
-el.innerText=mem[i];
-el.classList.add("flipped");
-flip.push(i);
-
-if(flip.length==2){
-moves++;
-document.getElementById("moves").innerText=moves;
-
-let [a,b]=flip;
-if(mem[a]==mem[b]){
-setTimeout(()=>{
-document.querySelectorAll(".card")[a].classList.add("matched");
-document.querySelectorAll(".card")[b].classList.add("matched");
-flip=[];
-checkWin();
-},300);
-}else{
-lock=true;
-setTimeout(()=>{
-document.querySelectorAll(".card")[a].innerText="?";
-document.querySelectorAll(".card")[b].innerText="?";
-flip=[];lock=false;
-},600);
-}
-}
+function renderQueryGrid(data, targetIdx) {
+    const grid = document.getElementById("wordGrid");
+    grid.innerHTML = "";
+    data.forEach((val, i) => {
+        let span = document.createElement("div");
+        span.className = "grid-item";
+        if(i === targetIdx) {
+            span.innerText = targetCode;
+            span.classList.add("target-style");
+        } else {
+            // Blinking effect for garbage data
+            span.innerText = Math.random() > 0.5 ? val : "####";
+            span.style.opacity = Math.random() > 0.8 ? "0.2" : "1";
+        }
+        span.onclick = () => {
+            if(i === targetIdx) {
+                clearInterval(gameInterval); clearInterval(blinkInterval);
+                alert("ACCESS_GRANTED");
+                show('menu');
+            }
+        };
+        grid.appendChild(span);
+    });
 }
 
-function checkWin(){
-if(document.querySelectorAll(".matched").length==mem.length){
-let best=localStorage.getItem("best")||999;
-if(moves<best){localStorage.setItem("best",moves);}
-document.getElementById("best").innerText=localStorage.getItem("best");
-alert("You Won!");
-}
-}
+/* --- 3. CI/CD DEPLOY GAME --- */
+let buildsInARow = 0;
+let buildStatus = "IDLE"; // "PASS" or "FAIL"
 
-/* REACTION */
-let startT,ready=false,seconds=0,interval;
-
-function updateTimer(){
-let h=Math.floor(seconds/3600);
-let m=Math.floor((seconds%3600)/60);
-let s=seconds%60;
-
-document.getElementById("timer").innerText =
-String(h).padStart(2,'0')+":"+
-String(m).padStart(2,'0')+":"+
-String(s).padStart(2,'0');
+function attemptDeploy() {
+    const statusText = document.getElementById("pipeline-status");
+    if (buildStatus === "PASS") {
+        buildsInARow++;
+        document.getElementById("deployCount").innerText = buildsInARow;
+        if (buildsInARow >= 5) {
+            clearInterval(gameInterval);
+            alert("PRODUCTION_STABLE: MISSION_SUCCESS");
+            show('menu');
+        }
+    } else {
+        buildsInARow = 0;
+        document.getElementById("deployCount").innerText = "0";
+        alert("BUILD_BROKEN: REVERTING_COMMIT");
+    }
 }
 
-function resetLights(){
-for(let i=1;i<=6;i++){
-let el=document.getElementById("l"+i);
-el.classList.remove("active","green");
-}
-}
-
-function startReaction(){
-resetLights();
-seconds=0;
-updateTimer();
-
-if(interval) clearInterval(interval);
-interval=setInterval(()=>{seconds++;updateTimer();},1000);
-
-for(let i=1;i<=6;i++){
-setTimeout(()=>{
-document.getElementById("l"+i).classList.add("active");
-},i*500);
-}
-
-let randomDelay = Math.random()*5000;
-
-setTimeout(()=>{
-for(let i=1;i<=6;i++){
-let el=document.getElementById("l"+i);
-el.classList.remove("active");
-el.classList.add("green");
-}
-startT=new Date().getTime();
-ready=true;
-},3000 + randomDelay);
+function startCicd() {
+    buildsInARow = 0;
+    document.getElementById("deployCount").innerText = "0";
+    clearInterval(gameInterval);
+    
+    gameInterval = setInterval(() => {
+        const indicator = document.getElementById("build-indicator");
+        const statusText = document.getElementById("pipeline-status");
+        
+        if (Math.random() > 0.6) {
+            buildStatus = "PASS";
+            indicator.style.background = "#00ff41";
+            statusText.innerText = "SUCCESS";
+            statusText.className = "status-pass";
+        } else {
+            buildStatus = "FAIL";
+            indicator.style.background = "#ff0000";
+            statusText.innerText = "FAILED";
+            statusText.className = "status-fail";
+        }
+    }, 800); // Speed changes every 0.8s
 }
 
-document.body.onclick=function(){
-if(!ready)return;
-
-let reaction=new Date().getTime()-startT;
-document.getElementById("res").innerText=reaction;
-
-let best=localStorage.getItem("bestR")||9999;
-if(reaction<best){localStorage.setItem("bestR",reaction);}
-document.getElementById("bestR").innerText=localStorage.getItem("bestR");
-
-clearInterval(interval);
-ready=false;
-resetLights();
+// Update menu logic to trigger CI/CD start
+const originalShow = show;
+show = function(id) {
+    originalShow(id);
+    if(id === 'cicd') startCicd();
 }
 
-/* TRUTH */
-let truths=["Secret?","Fear?","Crush?","Embarrassing moment?"];
-let dares=["Dance!","Sing!","Pushups!","Act funny!"];
-let spinning=false;
-
-function spin(){
-if(spinning)return;
-spinning=true;
-
-let wheel=document.getElementById("wheel");
-let deg=Math.random()*360+720;
-wheel.style.transform="rotate("+deg+"deg)";
-
-setTimeout(()=>{
-let angle=deg%360;
-
-if(angle<180){
-let t=truths[Math.floor(Math.random()*truths.length)];
-document.getElementById("tdres").innerText="Truth: "+t;
-}else{
-let d=dares[Math.floor(Math.random()*dares.length)];
-document.getElementById("tdres").innerText="Dare: "+d;
-}
-
-spinning=false;
-},3000);
-}
+show('menu');
