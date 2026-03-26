@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Game Hub</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+
+<h1>🎮 Game Hub</h1>
+
+<div id="menu">
+<button onclick="show('memory')">🧠 Memory</button>
+<button onclick="show('reaction')">🚦 Reaction</button>
+<button onclick="show('truth')">🎡 Truth/Dare</button>
+</div>
+
+<!-- MEMORY -->
+<div id="memory" class="section">
+<h2>Memory Game</h2>
+<p>Moves: <span id="moves">0</span></p>
+<p>Best: <span id="best">-</span></p>
+<button onclick="startMemory()">Start Game</button>
+<div id="memoryGrid"></div>
+</div>
+
+<!-- REACTION -->
+<div id="reaction" class="section">
+<h2>F1 Reaction Game</h2>
+
+<div id="lights">
+<div class="light red" id="l1"></div>
+<div class="light red" id="l2"></div>
+<div class="light red" id="l3"></div>
+<div class="light red" id="l4"></div>
+<div class="light red" id="l5"></div>
+<div class="light red" id="l6"></div>
+</div>
+
+<p>Time: <span id="timer">00:00:00</span></p>
+<p>Reaction: <span id="res">0</span> ms</p>
+<p>Best: <span id="bestR">-</span> ms</p>
+
+<button onclick="startReaction()">Start Game</button>
+</div>
+
+<!-- TRUTH -->
+<div id="truth" class="section">
+<h2>Truth or Dare</h2>
+<div id="pointer"></div>
+<div id="wheel"></div>
+<button onclick="spin()">Spin</button>
+<p id="tdres"></p>
+</div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
