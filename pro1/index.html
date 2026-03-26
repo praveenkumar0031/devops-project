@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Pong Game</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #111;
+            color: #fff;
+            margin: 0;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+
+        h1 {
+            margin-top: 25px;
+            letter-spacing: 2px;
+        }
+
+        canvas {
+            border: 2px solid #fff;
+            border-radius: 10px;
+            background: #222;
+            box-shadow: 0 0 20px #000;
+        }
+
+        /* Start Button */
+        #startBtn {
+            padding: 12px 28px;
+            font-size: 20px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #00c853;
+            color: white;
+            margin-bottom: 15px;
+            transition: 0.2s;
+        }
+
+        #startBtn:hover {
+            background: #00e676;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple Pong</h1>
+
+    <!-- Start Button -->
+    <button id="startBtn">Start Game</button>
+
+    <canvas id="pong" width="800" height="500"></canvas>
+
+    <script>
+        const canvas = document.getElementById('pong');
+        const ctx = canvas.getContext('2d');
+
+        // Canvas dimensions
+        const W = canvas.width;
+        const H = canvas.height;
+
+        // Paddle properties
+        const paddleWidth = 15;
+        const paddleHeight = 100;
+        const paddleSpeed = 6;
+
+        // Ball properties
+        const ballRadius = 12;
+        let ballX = W / 2;
+        let ballY = H / 2;
+        let ballSpeedX = 6 * (Math.random() > 0.5 ? 1 : -1);
+        let ballSpeedY = 4 * (Math.random() > 0.5 ? 1 : -1);
+
+        // Paddle positions
+        let leftPaddleY = (H - paddleHeight) / 2;
+        let rightPaddleY = (H - paddleHeight) / 2;
+
+        // Scores
+        let leftScore = 0;
+        let rightScore = 0;
+
+        // Game state
+        let gameStarted = false;
+        let gameOver = false;
+        let gameMessage = "";
+        const startBtn = document.getElementById("startBtn");
+
+        // Start Game Button
+        startBtn.addEventListener("click", () => {
+            gameStarted = true;
+            startBtn.style.display = "none";  // Hide start button
+        });
+
+        // Mouse control for left paddle
+        canvas.addEventListener("mousemove", e => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseY = e.clientY - rect.top;
+            leftPaddleY = Math.min(Math.max(mouseY - paddleHeight / 2, 0), H - paddleHeight);
+        });
+
+        // Continue? (Y/N)
+        document.addEventListener("keydown", (e) => {
+            if (!gameOver) return;
+
+            if (e.key.toLowerCase() === "y") {
+                gameOver = false;
+                resetBall();
+            }
+
+            if (e.key.toLowerCase() === "n") {
+                location.reload();
+            }
+        });
+
+        // Draw functions
+        function drawRect(x, y, w, h, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, w, h);
+        }
+
+        function drawCircle(x, y, radius, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawText(text, x, y, color) {
+            ctx.fillStyle = color;
+            ctx.font = "32px Arial";
+            ctx.fillText(text, x, y);
+        }
+
+        // Reset ball
+        function resetBall() {
+            ballX = W / 2;
+            ballY = H / 2;
+            ballSpeedX = 6 * (Math.random() > 0.5 ? 1 : -1);
+            ballSpeedY = 4 * (Math.random() > 0.5 ? 1 : -1);
+        }
+
+        // Stop game on win/lose
+        function freezeGame(message) {
+            gameOver = true;
+            gameMessage = message;
+        }
+
+        // Update game
+        function update() {
+            if (gameOver) return;
+
+            // Ball movement
+            ballX += ballSpeedX;
+            ballY += ballSpeedY;
+
+            // Wall bounce
+            if (ballY <= ballRadius || ballY >= H - ballRadius) {
+                ballSpeedY = -ballSpeedY;
+            }
+
+            // Left paddle collision
+            if (
+                ballX - ballRadius <= paddleWidth &&
+                ballY >= leftPaddleY &&
+                ballY <= leftPaddleY + paddleHeight
+            ) {
+                ballSpeedX = -ballSpeedX;
+                let impact = (ballY - (leftPaddleY + paddleHeight / 2)) / (paddleHeight / 2);
+                ballSpeedY += impact * 3;
+            }
+
+            // Right paddle collision
+            if (
+                ballX + ballRadius >= W - paddleWidth &&
+                ballY >= rightPaddleY &&
+                ballY <= rightPaddleY + paddleHeight
+            ) {
+                ballSpeedX = -ballSpeedX;
+                let impact = (ballY - (rightPaddleY + paddleHeight / 2)) / (paddleHeight / 2);
+                ballSpeedY += impact * 3;
+            }
+
+            // AI follow movement
+            let aiCenter = rightPaddleY + paddleHeight / 2;
+            if (aiCenter < ballY - 10) rightPaddleY += paddleSpeed;
+            else if (aiCenter > ballY + 10) rightPaddleY -= paddleSpeed;
+            rightPaddleY = Math.max(0, Math.min(H - paddleHeight, rightPaddleY));
+
+            // Scoring logic
+            if (ballX < 0) {
+                rightScore++;
+                freezeGame("YOU LOST! Continue? (Y/N)");
+            }
+
+            if (ballX > W) {
+                leftScore++;
+                freezeGame("YOU WON! Continue? (Y/N)");
+            }
+        }
+
+        // Draw everything
+        function draw() {
+            drawRect(0, 0, W, H, "#222");
+
+            // Paddles
+            drawRect(0, leftPaddleY, paddleWidth, paddleHeight, "#fff");
+            drawRect(W - paddleWidth, rightPaddleY, paddleWidth, paddleHeight, "#fff");
+
+            // Ball
+            drawCircle(ballX, ballY, ballRadius, "#fff");
+
+            // Center dashed line
+            for (let i = 0; i < H; i += 25) {
+                drawRect(W / 2 - 2, i, 4, 15, "#555");
+            }
+
+            // Scores
+            drawText(leftScore, W / 4, 50, "#fff");
+            drawText(rightScore, (3 * W) / 4, 50, "#fff");
+
+            // Before starting
+            if (!gameStarted) {
+                drawText("CLICK START TO PLAY", W / 2 - 180, H / 2, "#fff");
+            }
+
+            // Game-over message
+            if (gameOver) {
+                drawText(gameMessage, W / 2 - 250, H / 2, "yellow");
+            }
+        }
+
+        // Main loop
+        function gameLoop() {
+            if (gameStarted) update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
+
