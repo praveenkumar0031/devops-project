@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DevOps Tools</title>
+
+<style>
+body {
+    font-family: Georgia, serif;
+    background: #f6f7f9;
+    margin: 0;
+}
+
+header {
+    background: #e9ecef;
+    padding: 15px 40px;
+    font-size: 26px;
+    border-bottom: 1px solid #aaa;
+}
+
+.container {
+    max-width: 900px;
+    margin: auto;
+    background: white;
+    padding: 20px;
+}
+
+h1 {
+    border-bottom: 2px solid #3366cc;
+}
+
+h2 {
+    margin-top: 30px;
+    border-bottom: 1px solid #aaa;
+    color: #2a4b8d;
+}
+
+.tool-box {
+    border: 1px solid #ddd;
+    margin-top: 15px;
+    border-radius: 6px;
+    background: #fafafa;
+    padding: 10px;
+}
+
+.tool-header {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.tool-icon {
+    width: 55px;
+    height: 55px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 1px solid #ddd;
+    background: white;
+    margin-right: 10px;
+}
+
+.tool-icon img {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.summary {
+    font-size: 14px;
+    margin-top: 5px;
+    color: #444;
+}
+
+/* ADDED */
+.doc-link {
+    font-size: 13px;
+    color: #0645ad;
+    text-decoration: none;
+    display: block;
+}
+
+.doc-link:hover {
+    text-decoration: underline;
+}
+
+.toggle-btn {
+    margin-left: auto;
+    font-size: 18px;
+}
+
+/* DETAILS */
+.tool-details {
+    display: none;
+    margin-top: 10px;
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.tool-details ul {
+    margin-top: 5px;
+}
+
+.active .tool-details {
+    display: block;
+}
+</style>
+</head>
+
+<body>
+
+<header>DevOps Tools</header>
+
+<div class="container">
+
+<h1>Introduction</h1>
+<p>Click each tool to view detailed explanation and use cases.</p>
+
+<h2>Tools</h2>
+
+<!-- GIT -->
+<div class="tool-box">
+<div class="tool-header" onclick="toggle(this.parentElement, event)">
+<div class="tool-icon"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg"></div>
+<div>
+<h3>Git</h3>
+<div class="summary">Version control system to track code changes.</div>
+<a class="doc-link" href="https://git-scm.com/docs" target="_blank" onclick="event.stopPropagation()">Official Documentation</a>
+</div>
+<div class="toggle-btn">▼</div>
+</div>
+<div class="tool-details">
+<p>
+Git is a distributed version control system used in software development. It helps track changes, manage versions, and collaborate effectively.
+It supports branching, merging, and rollback features. Developers can work independently and merge code later. It maintains a complete history
+of changes and improves teamwork. Git is widely used in modern DevOps pipelines.
+</p>
+<b>Where to use:</b>
+<ul>
+<li>Source code management</li>
+<li>Team collaboration</li>
+<li>Version tracking</li>
+<li>Software development projects</li>
+</ul>
+</div>
+</div>
+
+<!-- GITHUB -->
+<div class="tool-box">
+<div class="tool-header" onclick="toggle(this.parentElement, event)">
+<div class="tool-icon"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg"></div>
+<div>
+<h3>GitHub</h3>
+<div class="summary">Platform to host and manage Git repositories.</div>
+<a class="doc-link" href="https://docs.github.com" target="_blank" onclick="event.stopPropagation()">Official Documentation</a>
+</div>
+<div class="toggle-btn">▼</div>
+</div>
+<div class="tool-details">
+<p>
+GitHub is a cloud-based platform for hosting Git repositories. It enables developers to collaborate through pull requests, issues, and workflows.
+It provides version control, CI/CD integration, and project management features. GitHub is widely used for open-source and private projects.
+</p>
+<b>Where to use:</b>
+<ul>
+<li>Code hosting</li>
+<li>Team collaboration</li>
+<li>Project management</li>
+<li>CI/CD integration</li>
+</ul>
+</div>
+</div>
+
+<!-- JENKINS -->
+<div class="tool-box">
+<div class="tool-header" onclick="toggle(this.parentElement, event)">
+<div class="tool-icon"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/jenkins/jenkins-original.svg"></div>
+<div>
+<h3>Jenkins</h3>
+<div class="summary">Automation server for CI/CD pipelines.</div>
+<a class="doc-link" href="https://www.jenkins.io/doc/" target="_blank" onclick="event.stopPropagation()">Official Documentation</a>
+</div>
+<div class="toggle-btn">▼</div>
+</div>
+<div class="tool-details">
+<p>
+Jenkins is an open-source automation tool used to build, test, and deploy applications. It supports plugins for integration with many tools.
+Jenkins pipelines automate the software lifecycle and reduce manual work. It helps detect bugs early and improves delivery speed.
+</p>
+<b>Where to use:</b>
+<ul>
+<li>CI/CD pipelines</li>
+<li>Automated testing</li>
+<li>Deployment automation</li>
+<li>Build management</li>
+</ul>
+</div>
+</div>
+
+<!-- DOCKER -->
+<div class="tool-box">
+<div class="tool-header" onclick="toggle(this.parentElement, event)">
+<div class="tool-icon"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg"></div>
+<div>
+<h3>Docker</h3>
+<div class="summary">Container platform for consistent environments.</div>
+<a class="doc-link" href="https://docs.docker.com" target="_blank" onclick="event.stopPropagation()">Official Documentation</a>
+</div>
+<div class="toggle-btn">▼</div>
+</div>
+<div class="tool-details">
+<p>
+Docker is a containerization platform that packages applications with dependencies. It ensures applications run consistently across environments.
+Docker containers are lightweight, portable, and scalable. It simplifies deployment and reduces compatibility issues.
+</p>
+<b>Where to use:</b>
+<ul>
+<li>Application deployment</li>
+<li>Microservices architecture</li>
+<li>Development environments</li>
+<li>Cloud applications</li>
+</ul>
+</div>
+</div>
+
+
+<!-- KUBERNETES -->
+<div class="tool-box">
+<div class="tool-header" onclick="toggle(this.parentElement, event)">
+<div class="tool-icon"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain.svg"></div>
+<div>
+<h3>Kubernetes</h3>
+<div class="summary">Container orchestration and scaling tool.</div>
+<a class="doc-link" href="https://kubernetes.io/docs/" target="_blank" onclick="event.stopPropagation()">Official Documentation</a>
+</div>
+<div class="toggle-btn">▼</div>
+</div>
+<div class="tool-details">
+<p>
+Kubernetes is used to manage containerized applications. It automates deployment, scaling, and load balancing. It ensures high availability and reliability.
+Kubernetes handles failures and manages clusters efficiently in production environments.
+</p>
+<b>Where to use:</b>
+<ul>
+<li>Cloud deployments</li>
+<li>Microservices management</li>
+<li>Auto-scaling systems</li>
+<li>High-availability applications</li>
+</ul>
+</div>
+</div>
+
+<!-- ANSIBLE -->
+<div class="tool-box">
+<div class="tool-header" onclick="toggle(this.parentElement, event)">
+<div class="tool-icon"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/ansible/ansible-original.svg"></div>
+<div>
+<h3>Ansible</h3>
+<div class="summary">Automation tool for configuration management.</div>
+<a class="doc-link" href="https://docs.ansible.com" target="_blank" onclick="event.stopPropagation()">Official Documentation</a>
+</div>
+<div class="toggle-btn">▼</div>
+</div>
+<div class="tool-details">
+<p>
+Ansible automates IT tasks such as configuration, deployment, and provisioning. It uses simple YAML playbooks and requires no agent installation.
+It is efficient, scalable, and widely used in DevOps environments.
+</p>
+<b>Where to use:</b>
+<ul>
+<li>Server configuration</li>
+<li>Application deployment</li>
+<li>Automation tasks</li>
+<li>Infrastructure management</li>
+</ul>
+</div>
+</div>
+
+<!-- TERRAFORM -->
+<div class="tool-box">
+<div class="tool-header" onclick="toggle(this.parentElement, event)">
+<div class="tool-icon"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/terraform/terraform-original.svg"></div>
+<div>
+<h3>Terraform</h3>
+<div class="summary">Infrastructure as Code tool.</div>
+<a class="doc-link" href="https://developer.hashicorp.com/terraform/docs" target="_blank" onclick="event.stopPropagation()">Official Documentation</a>
+</div>
+<div class="toggle-btn">▼</div>
+</div>
+<div class="tool-details">
+<p>
+Terraform allows developers to define infrastructure using code. It supports multiple cloud providers and automates resource creation.
+It ensures consistency, scalability, and reproducibility.
+</p>
+<b>Where to use:</b>
+<ul>
+<li>Cloud infrastructure</li>
+<li>Resource provisioning</li>
+<li>Infrastructure automation</li>
+<li>Multi-cloud environments</li>
+</ul>
+</div>
+</div>
+
+<!-- PROMETHEUS -->
+<div class="tool-box">
+<div class="tool-header" onclick="toggle(this.parentElement, event)">
+<div class="tool-icon"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/prometheus/prometheus-original.svg"></div>
+<div>
+<h3>Prometheus</h3>
+<div class="summary">Monitoring and alerting system.</div>
+<a class="doc-link" href="https://prometheus.io/docs/" target="_blank" onclick="event.stopPropagation()">Official Documentation</a>
+</div>
+<div class="toggle-btn">▼</div>
+</div>
+<div class="tool-details">
+<p>
+Prometheus collects metrics and stores them as time-series data. It provides alerting and monitoring capabilities.
+It helps track system performance and detect issues early.
+</p>
+<b>Where to use:</b>
+<ul>
+<li>System monitoring</li>
+<li>Performance tracking</li>
+<li>Alerting systems</li>
+<li>Cloud environments</li>
+</ul>
+</div>
+</div>
+
+<!-- GRAFANA -->
+<div class="tool-box">
+<div class="tool-header" onclick="toggle(this.parentElement, event)">
+<div class="tool-icon"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/grafana/grafana-original.svg"></div>
+<div>
+<h3>Grafana</h3>
+<div class="summary">Visualization tool for monitoring data.</div>
+<a class="doc-link" href="https://grafana.com/docs/" target="_blank" onclick="event.stopPropagation()">Official Documentation</a>
+</div>
+<div class="toggle-btn">▼</div>
+</div>
+<div class="tool-details">
+<p>
+Grafana creates dashboards to visualize metrics from tools like Prometheus. It helps analyze data and monitor system health.
+It provides real-time insights.
+</p>
+<b>Where to use:</b>
+<ul>
+<li>Dashboard creation</li>
+<li>Monitoring systems</li>
+<li>Data visualization</li>
+<li>Performance analysis</li>
+</ul>
+</div>
+</div>
+
+<!-- PUTTY -->
+<div class="tool-box">
+<div class="tool-header" onclick="toggle(this.parentElement, event)">
+<div class="tool-icon"><img src="https://upload.wikimedia.org/wikipedia/commons/0/0e/PuTTY_icon.svg"></div>
+<div>
+<h3>PuTTY</h3>
+<div class="summary">SSH client to access remote servers.</div>
+<a class="doc-link" href="https://www.chiark.greenend.org.uk/~sgtatham/putty/docs.html" target="_blank" onclick="event.stopPropagation()">Official Documentation</a>
+</div>
+<div class="toggle-btn">▼</div>
+</div>
+<div class="tool-details">
+<p>
+PuTTY is a terminal emulator used to connect to remote servers via SSH. It enables secure communication and remote command execution.
+It is widely used by system administrators.
+</p>
+<b>Where to use:</b>
+<ul>
+<li>Remote server access</li>
+<li>Server management</li>
+<li>Cloud systems</li>
+<li>Deployment environments</li>
+</ul>
+</div>
+</div>
+
+<!-- SELENIUM -->
+<div class="tool-box">
+<div class="tool-header" onclick="toggle(this.parentElement, event)">
+<div class="tool-icon"><img src="https://upload.wikimedia.org/wikipedia/commons/d/d5/Selenium_Logo.png"></div>
+<div>
+<h3>Selenium</h3>
+<div class="summary">Automation tool for web testing.</div>
+<a class="doc-link" href="https://www.selenium.dev/documentation/" target="_blank" onclick="event.stopPropagation()">Official Documentation</a>
+</div>
+<div class="toggle-btn">▼</div>
+</div>
+<div class="tool-details">
+<p>
+Selenium automates web application testing. It supports multiple languages and browsers. It is widely used in CI/CD pipelines for automated testing.
+It improves software quality.
+</p>
+<b>Where to use:</b>
+<ul>
+<li>Web testing</li>
+<li>Automation testing</li>
+<li>CI/CD pipelines</li>
+<li>Quality assurance</li>
+</ul>
+</div>
+</div>
+
+</div>
+
+<script>
+function toggle(el, event){
+    if (event.target.tagName === "A") return;
+    el.classList.toggle("active");
+}
+</script>
+
+</body>
+</html>
