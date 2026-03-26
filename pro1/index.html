@@ -18,28 +18,16 @@ body {
     font-family: Arial;
     color:white;
     background: linear-gradient(135deg,#1e3c72,#2a5298);
-    overflow:hidden;
+    overflow:auto;
 }
 
-/* Background bubbles */
-.bg span {
-    position:absolute;
-    width:20px;
-    height:20px;
-    background:rgba(255,255,255,0.2);
-    border-radius:50%;
-    bottom:-100px;
-    animation: rise 20s infinite;
+canvas {
+    background:black;
+    border-radius:12px;
+    box-shadow:0 0 25px cyan;
+    width:min(95vw, 800px);
+    height:auto;
 }
-
-@keyframes rise {
-    from { transform:translateY(0); opacity:1; }
-    to { transform:translateY(-1000px); opacity:0; }
-}
-
-h1 { margin-bottom:10px; }
-
-.controls { margin:10px; }
 
 button {
     padding:10px 15px;
@@ -50,41 +38,17 @@ button {
     color:white;
     cursor:pointer;
 }
-
-canvas {
-    background:black;
-    border-radius:12px;
-    box-shadow:0 0 25px cyan;
-}
 </style>
 
 </head>
 
 <body>
 
-<div class="bg">
-    <span style="left:10%"></span>
-    <span style="left:20%"></span>
-    <span style="left:30%"></span>
-    <span style="left:40%"></span>
-    <span style="left:50%"></span>
-    <span style="left:60%"></span>
-    <span style="left:70%"></span>
-    <span style="left:80%"></span>
-</div>
-
 <h1>🎮 Ping Pong Game</h1>
 
-<div class="controls">
+<div>
     <button id="startBtn">Start</button>
-    <button id="pauseBtn" style="display:none;">Pause</button>
-    <button id="resumeBtn" style="display:none;">Resume</button>
-
-```
-<p id="score">Score: 0</p>
-<p id="lives">Lives: ❤️❤️❤️</p>
-```
-
+    <p id="score">Score: 0</p>
 </div>
 
 <canvas id="game"></canvas>
@@ -93,178 +57,167 @@ canvas {
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let mode = "vertical";
+// resize
+canvas.width = 800;
+canvas.height = 500;
 
-// Resize canvas
-function resizeCanvas() {
-    canvas.width = Math.min(window.innerWidth * 0.7, 800);
-    canvas.height = Math.min(window.innerHeight * 0.6, 500);
-}
-resizeCanvas();
-window.addEventListener("resize", resizeCanvas);
+// game variables
+let paddle, bot, ball;
+let speed = 4;
+let score = 0;
+let running = false;
+const TARGET_RALLY = 20;
 
-let paddle=null, bot=null, ball=null;
-let running=false, paused=false;
-let score=0, lives=3, startTime=0;
-
-const startBtn = document.getElementById("startBtn");
-const pauseBtn = document.getElementById("pauseBtn");
-const resumeBtn = document.getElementById("resumeBtn");
-
+// init
 function init(){
-    if(mode==="vertical"){
-        paddle={x:canvas.width/2-60,y:canvas.height-30,w:120,h:10};
-        bot={x:canvas.width/2-60,y:10,w:120,h:10};
-    }else{
-        paddle={x:canvas.width-30,y:canvas.height/2-60,w:10,h:120};
-        bot={x:10,y:canvas.height/2-60,w:10,h:120};
-    }
+    paddle = { x: 350, y: 470, w:120, h:10 };
+    bot    = { x: 350, y: 20,  w:120, h:10 };
+
     resetBall();
 }
 
+// reset ball
 function resetBall(){
-    ball={x:canvas.width/2,y:canvas.height/2,dx:2,dy:2,r:8};
+    ball = {
+        x: canvas.width/2,
+        y: canvas.height/2,
+        dx: speed * (Math.random() > 0.5 ? 1 : -1),
+        dy: speed,
+        r: 8
+    };
 }
 
-function adjustSpeed(){
-    let t=(Date.now()-startTime)/1000;
-    let speed = t<10 ? 2 : 4;
-    ball.dx=Math.sign(ball.dx)*speed;
-    ball.dy=Math.sign(ball.dy)*speed;
-}
-
-function moveBot(){
-    if(mode==="vertical"){
-        bot.x += (ball.x - bot.x - bot.w/2)*0.08;
-    }else{
-        bot.y += (ball.y - bot.y - bot.h/2)*0.08;
-    }
-}
-
+// draw
 function draw(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
+    // paddle
     ctx.fillStyle="cyan";
     ctx.fillRect(paddle.x,paddle.y,paddle.w,paddle.h);
 
+    // bot
     ctx.fillStyle="orange";
     ctx.fillRect(bot.x,bot.y,bot.w,bot.h);
 
+    // ball
     ctx.beginPath();
     ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
     ctx.fillStyle="red";
     ctx.fill();
 }
 
-function loop(){
-    if(!running||paused) return;
+// bot AI
+function moveBot(){
+    // Keep bot very accurate for early rally so it can return shots reliably.
+    const followStrength = score < TARGET_RALLY ? 0.24 : 0.12;
+    bot.x += (ball.x - (bot.x + bot.w/2)) * followStrength;
 
-    adjustSpeed();
+    if(bot.x < 0) bot.x = 0;
+    if(bot.x + bot.w > canvas.width) bot.x = canvas.width - bot.w;
+}
+
+// main loop
+function loop(){
+    if(!running) return;
+
     moveBot();
 
-    ball.x+=ball.dx;
-    ball.y+=ball.dy;
+    // move ball
+    ball.x += ball.dx;
+    ball.y += ball.dy;
 
-    if(ball.x<0||ball.x>canvas.width) ball.dx*=-1;
-    if(ball.y<0) ball.dy*=-1;
+    // wall bounce
+    if(ball.x < 0 || ball.x > canvas.width)
+        ball.dx *= -1;
 
-    if(mode==="vertical"){
-        if(ball.y>canvas.height){
-            lives--;
-            updateLives();
-            if(lives===0) return endGame();
-            resetBall();
-        }
+    if(ball.y + ball.r < 0){
+        alert("You Win! Score: " + score);
+        running = false;
+        return;
+    }
 
-        if(ball.y>paddle.y &&
-           ball.x>paddle.x &&
-           ball.x<paddle.x+paddle.w){
-            ball.dy*=-1;
-            score++;
-        }
+    // user paddle collision 🔥
+    if(
+        ball.y + ball.r >= paddle.y &&
+        ball.x >= paddle.x &&
+        ball.x <= paddle.x + paddle.w
+    ){
+        score++;
 
-        if(ball.y<bot.y+bot.h &&
-           ball.x>bot.x &&
-           ball.x<bot.x+bot.w){
-            ball.dy*=-1;
-        }
+        // increase speed
+        speed += 0.5;
+        if(speed > 12) speed = 12;
+
+        // apply speed
+        ball.dy = -speed;
+
+        // angle effect
+        let hit = ball.x - (paddle.x + paddle.w/2);
+        ball.dx = hit * 0.15;
+    }
+
+    // bot collision
+    const botCatchWidth = score < TARGET_RALLY ? bot.w + 180 : bot.w;
+    const botLeft = bot.x - (botCatchWidth - bot.w) / 2;
+    const botRight = botLeft + botCatchWidth;
+
+    if(
+        ball.y - ball.r <= bot.y + bot.h &&
+        ball.x >= botLeft &&
+        ball.x <= botRight
+    ){
+        ball.dy = speed;
+    }
+
+    // missed ball
+    if(ball.y > canvas.height){
+        alert("Game Over! Score: " + score);
+        running = false;
+        return;
     }
 
     draw();
-    document.getElementById("score").innerText="Score: "+score;
+    document.getElementById("score").innerText = "Score: " + score;
 
     requestAnimationFrame(loop);
 }
 
-// ✅ SAFE CONTROLS (fixed bug)
+// controls
 document.addEventListener("keydown", e=>{
     if(!paddle) return;
 
-    if(mode==="vertical"){
-        if(e.key==="ArrowLeft"){
-            paddle.x -= 20;
-            if(paddle.x<0) paddle.x=0;
-        }
-        if(e.key==="ArrowRight"){
-            paddle.x += 20;
-            if(paddle.x + paddle.w > canvas.width)
-                paddle.x = canvas.width - paddle.w;
-        }
+    if(e.key==="ArrowLeft"){
+        paddle.x -= 25;
+        if(paddle.x < 0) paddle.x = 0;
+    }
+
+    if(e.key==="ArrowRight"){
+        paddle.x += 25;
+        if(paddle.x + paddle.w > canvas.width)
+            paddle.x = canvas.width - paddle.w;
     }
 });
 
-// ✅ SAFE MOUSE CONTROL
+// mouse
 canvas.addEventListener("mousemove", e=>{
     if(!paddle) return;
 
-    const rect=canvas.getBoundingClientRect();
-    paddle.x=e.clientX-rect.left-paddle.w/2;
+    const rect = canvas.getBoundingClientRect();
+    paddle.x = e.clientX - rect.left - paddle.w/2;
 
-    if(paddle.x<0) paddle.x=0;
-    if(paddle.x+paddle.w>canvas.width)
-        paddle.x=canvas.width-paddle.w;
+    if(paddle.x < 0) paddle.x = 0;
+    if(paddle.x + paddle.w > canvas.width)
+        paddle.x = canvas.width - paddle.w;
 });
 
-function updateLives(){
-    document.getElementById("lives").innerText =
-        "Lives: " + "❤️".repeat(lives);
-}
-
-startBtn.onclick=()=>{
-    score=0; lives=3; startTime=Date.now();
-    updateLives();
-
+// start button
+document.getElementById("startBtn").onclick = ()=>{
+    score = 0;
+    speed = 4;
     init();
-    running=true; paused=false;
-
-    startBtn.style.display="none";
-    pauseBtn.style.display="inline-block";
-    resumeBtn.style.display="none";
-
+    running = true;
     loop();
 };
-
-pauseBtn.onclick=()=>{
-    paused=true;
-    pauseBtn.style.display="none";
-    resumeBtn.style.display="inline-block";
-};
-
-resumeBtn.onclick=()=>{
-    paused=false;
-    resumeBtn.style.display="none";
-    pauseBtn.style.display="inline-block";
-    loop();
-};
-
-function endGame(){
-    running=false;
-    alert("Game Over! Score: "+score);
-
-    startBtn.style.display="inline-block";
-    pauseBtn.style.display="none";
-    resumeBtn.style.display="none";
-}
 </script>
 
 </body>
