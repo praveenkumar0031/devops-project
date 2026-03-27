@@ -1,0 +1,29 @@
+---
+- name: Deploy Docker Projects to EC2
+  hosts: all
+  become: yes
+  vars:
+    # This will be passed from Jenkins
+    docker_username: "{{ docker_id }}"
+  
+  tasks:
+    - name: Install Docker
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
+
+    - name: Start Docker Service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Pull and Run Application
+      docker_container:
+        name: "web-container"
+        image: "{{ docker_username }}/pro1:latest"
+        state: started
+        ports:
+          - "80:80"
+        restart_policy: always
