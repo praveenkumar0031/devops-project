@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Weather App</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    #myVideo {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      z-index: -1;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    h1 {
+      color: white;
+      margin-bottom: 20px;
+      text-shadow: 1px 1px 2px #000;
+      z-index: 1;
+    }
+
+    .container {
+      background-color: rgba(0,0,0,0.5);
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+      z-index: 1;
+      backdrop-filter: blur(5px);
+    }
+
+    input {
+      width: 80%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+
+    button {
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .weather-info {
+      margin-top: 20px;
+      display: none;
+    }
+
+    .weather-info img {
+      width: 80px;
+      height: 80px;
+    }
+
+    .weather-info h2 {
+      margin-bottom: 10px;
+      color: aqua;
+    }
+
+    .weather-info p {
+      margin: 5px 0;
+      color: rgb(250, 231, 207);
+    }
+
+    @media (max-width: 500px) {
+      h1 {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ✅ Background video placed outside all containers -->
+  <video autoplay muted loop id="myVideo">
+    <source src="we.mp4" type="video/mp4">
+    Your browser does not support HTML5 video.
+  </video>
+
+  <h1>🌤️ Weather App</h1>
+
+  <div class="container">
+    <input type="text" id="cityInput" placeholder="Enter city name" />
+    <button onclick="getWeather()">Get Weather</button>
+
+    <div class="weather-info" id="weatherBox">
+      <h2 id="cityName"></h2>
+      <img id="weatherIcon" src="" alt="Weather icon" />
+      <p><strong>Temperature:</strong> <span id="temp"></span> °C</p>
+      <p><strong>Condition:</strong> <span id="description"></span></p>
+      <p><strong>Humidity:</strong> <span id="humidity"></span>%</p>
+    </div>
+  </div>
+
+  <script>
+    const apiKey = '5e64fb5b1f7242e155fcae707578e1a6';
+
+    async function getWeather() {
+      const userLocation = document.getElementById('cityInput').value.trim();
+      if (!userLocation) {
+        alert("Please enter a city name.");
+        return;
+      }
+
+      const srcLink = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(userLocation)}&appid=${apiKey}&units=metric`;
+
+      try {
+        const response = await fetch(srcLink);
+        if (!response.ok) throw new Error("City not found");
+
+        const data = await response.json();
+
+        document.getElementById('weatherBox').style.display = 'block';
+        document.getElementById('cityName').innerText = data.name;
+        document.getElementById('temp').innerText = data.main.temp;
+        document.getElementById('description').innerText = data.weather[0].description;
+        document.getElementById('humidity').innerText = data.main.humidity;
+        const iconCode = data.weather[0].icon;
+        document.getElementById('weatherIcon').src = `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+        console.log(iconCode);
+
+      } catch (error) {
+        alert("Error: " + error.message);
+      }
+    }
+  </script>
+
+</body>
+</html>
+
