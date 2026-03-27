@@ -72,37 +72,44 @@ pipeline {
                 script {
                     try {
                         withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', 
-                                                          keyFileVariable: 'SSH_KEY_FILE')]) {
+                                                          keyFileVariable: 'TEMP_KEY_FILE')]) {
                             
                             withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', 
                                                              passwordVariable: 'DOCKER_PASS', 
                                                              usernameVariable: 'DOCKER_ID')]) {
                                 
+                                // 1. Create a clean local copy of the key
+                                bat "copy /Y \"%TEMP_KEY_FILE%\" master_key.pem"
+                                
+                                // 2. Force Windows Permissions (Required for Jenkins Service)
                                 bat """
-icacls "%SSH_KEY_FILE%" /inheritance:r
-icacls "%SSH_KEY_FILE%" /grant:r SYSTEM:(R)
-"""
-                                // 1. Capture the IP address cleanly
-                                // We use returnStdout: true and .trim() to get just the numbers
+                                icacls master_key.pem /reset
+                                icacls master_key.pem /inheritance:r
+                                icacls master_key.pem /grant:r SYSTEM:(R)
+                                icacls master_key.pem /grant:r Administrators:(R)
+                                """
+
+                                // 3. Get the Master IP
                                 def masterIp = bat(
                                     script: "terraform -chdir=terraform output -raw master_node_ip", 
                                     returnStdout: true
-                                ).split('\r?\n')[-1].trim() // This ensures we get only the last line (the IP)
+                                ).split('\r?\n')[-1].trim()
 
-                                echo "Targeting Master Node: ${masterIp}"
+                                echo "Attempting connection to: ${masterIp} as ec2-user"
 
-                                // 2. SCP Files to Master
-                                // We use double quotes for the whole string so we can use ${masterIp}
-                                bat "scp -i \"%SSH_KEY_FILE%\" -o StrictHostKeyChecking=no deploy_docker.yml terraform/inventory.ini ec2-user@${masterIp}:/home/ec2-user/"
+                                // 4. SCP files using the fixed key
+                                bat "scp -i master_key.pem -o StrictHostKeyChecking=no deploy_docker.yml terraform/inventory.ini ec2-user@${masterIp}:/home/ec2-user/"
 
-                                // 3. Install Ansible and Run Playbook
-                                // We use ^ to wrap the long command for Windows Batch
+                                // 5. SSH and Run Ansible
                                 bat """
-                                ssh -i \"%SSH_KEY_FILE%\" -o StrictHostKeyChecking=no ec2-user@${masterIp} ^
+                                ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} ^
                                 \"sudo yum update -y && ^
-                                 (sudo amazon-linux-extras install ansible2 -y || sudo yum install ansible -y) && ^
+                                 sudo amazon-linux-extras install ansible2 -y || sudo yum install ansible -y && ^
                                  ansible-playbook -i inventory.ini deploy_docker.yml -e 'docker_id=%DOCKER_ID%'\"
                                 """
+                                
+                                // 6. Cleanup
+                                bat "del master_key.pem"
                             }
                         }
                     } catch (Exception e) {
