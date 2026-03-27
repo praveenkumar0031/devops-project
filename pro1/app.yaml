@@ -14,8 +14,8 @@ spec:
     spec:
       containers:
       - name: ping-container
-        image: pro1:latest
-        imagePullPolicy: Never
+        image: nginx:alpine
+        imagePullPolicy: Always
         ports:
         - containerPort: 80
 
