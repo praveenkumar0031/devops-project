@@ -67,48 +67,46 @@ pipeline {
         //     }
         // }
        stage('Ansible Deployment') {
-    when { expression { params.ACTION == 'apply' } }
-    steps {
-        script {
-            try {
-                // Pull your SSH key file
-                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', 
-                                                  keyFileVariable: 'SSH_KEY_FILE')]) {
-                    
-                    // Pull Docker Hub info to pass as a variable
-                    withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', 
-                                                     passwordVariable: 'DOCKER_PASS', 
-                                                     usernameVariable: 'DOCKER_ID')]) {
-                        
-                        // 1. Get the Public IP of your 'Master' node from Terraform
-                        // Note: Ensure your terraform output defines 'master_public_ip'
-                        def masterIp = bat(script: "terraform -chdir=terraform output -raw master_node_ip", returnStdout: true).trim()
+            when { expression { params.ACTION == 'apply' } }
+            steps {
+                script {
+                    try {
+                        withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', 
+                                                          keyFileVariable: 'SSH_KEY_FILE')]) {
+                            
+                            withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', 
+                                                             passwordVariable: 'DOCKER_PASS', 
+                                                             usernameVariable: 'DOCKER_ID')]) {
+                                
+                                // 1. Capture the IP address cleanly
+                                // We use returnStdout: true and .trim() to get just the numbers
+                                def masterIp = bat(
+                                    script: "terraform -chdir=terraform output -raw master_node_ip", 
+                                    returnStdout: true
+                                ).split('\r?\n')[-1].trim() // This ensures we get only the last line (the IP)
 
-                        echo "Targeting Master Node: ${masterIp}"
+                                echo "Targeting Master Node: ${masterIp}"
 
-                        // 2. SCP (Copy) the files to the Master EC2
-                        // We copy the playbook and the inventory file
-                        bat """
-                        scp -i "%SSH_KEY_FILE%" -o StrictHostKeyChecking=no ^
-                        deploy_docker.yml terraform/inventory.ini ec2-user@${masterIp}:/home/ec2-user/
-                        """
+                                // 2. SCP Files to Master
+                                // We use double quotes for the whole string so we can use ${masterIp}
+                                bat "scp -i \"%SSH_KEY_FILE%\" -o StrictHostKeyChecking=no deploy_docker.yml terraform/inventory.ini ec2-user@${masterIp}:/home/ec2-user/"
 
-                        // 3. SSH into Master to Install Ansible and Run Playbook
-                        // We use sudo yum install to set up the environment on the fly
-                        bat """
-                        ssh -i "%SSH_KEY_FILE%" -o StrictHostKeyChecking=no ec2-user@${masterIp} ^
-                        "sudo yum update -y && ^
-                         sudo amazon-linux-extras install ansible2 -y || sudo yum install ansible -y && ^
-                         ansible-playbook -i inventory.ini deploy_docker.yml -e 'docker_id=%DOCKER_ID%'"
-                        """
+                                // 3. Install Ansible and Run Playbook
+                                // We use ^ to wrap the long command for Windows Batch
+                                bat """
+                                ssh -i \"%SSH_KEY_FILE%\" -o StrictHostKeyChecking=no ec2-user@${masterIp} ^
+                                \"sudo yum update -y && ^
+                                 (sudo amazon-linux-extras install ansible2 -y || sudo yum install ansible -y) && ^
+                                 ansible-playbook -i inventory.ini deploy_docker.yml -e 'docker_id=%DOCKER_ID%'\"
+                                """
+                            }
+                        }
+                    } catch (Exception e) {
+                        error "Jump Server Deployment failed: ${e.getMessage()}"
                     }
                 }
-            } catch (Exception e) {
-                error "Jump Server Deployment failed: ${e.getMessage()}"
             }
         }
-    }
-}
     }
 
     post {
