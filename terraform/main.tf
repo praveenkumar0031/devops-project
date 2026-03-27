@@ -53,7 +53,7 @@ resource "aws_instance" "web_nodes" {
   count         = 4
   ami           = "ami-0c7217cdde317cfec" # Amazon Linux 2 (Ensure this is valid for us-east-1)
   instance_type = "t3.micro"
-  key_name = "test"
+  key_name = "project"
   # These references now work because the resources are defined above
   vpc_security_group_ids = [aws_security_group.all_traffic_sg.id]
   subnet_id              = module.vpc.public_subnets[0]
@@ -68,7 +68,7 @@ resource "aws_instance" "web_nodes" {
 resource "aws_instance" "master_node" {
   ami           = "ami-0c7217cdde317cfec"
   instance_type = "t3.small" # t3.small is better for running Prometheus + Grafana
-  key_name = "test"
+  key_name = "project"
   vpc_security_group_ids = [aws_security_group.all_traffic_sg.id]
   subnet_id              = module.vpc.public_subnets[0]
   iam_instance_profile = aws_iam_instance_profile.ecr_profile.name
