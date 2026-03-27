@@ -13,14 +13,7 @@ pipeline {
                 checkout scm
             }
         }
-        stage('Ansible Config') {
-    steps {
-        // This helper pulls the key from Jenkins memory, NOT from your files
-        sshagent(['ec2-ssh-key']) {
-            bat 'ansible-playbook -i terraform/inventory.ini setup_docker.yml'
-        }
-    }
-}
+        
 
         stage('Terraform Operations') {
             steps {
@@ -32,5 +25,14 @@ pipeline {
                 }
             }
         }
+        stage('Ansible Config') {
+    steps {
+        // This helper pulls the key from Jenkins memory, NOT from your files
+        sshagent(['ec2-ssh-key']) {
+            bat 'ansible-playbook -i terraform/inventory.ini setup_docker.yml'
+        }
+    }
+}
+        
     }
 }
