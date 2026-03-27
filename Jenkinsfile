@@ -95,7 +95,8 @@ pipeline {
                             withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', 
                                                              passwordVariable: 'DOCKER_PASS', 
                                                              usernameVariable: 'DOCKER_ID')]) {
-                                
+                                echo "Waiting for SSH to wake up..."
+                                sleep 30
                                 // 4. SCP and SSH
                                 bat "scp -i master_key.pem -o StrictHostKeyChecking=no deploy_docker.yml terraform/inventory.ini ec2-user@${masterIp}:/home/ec2-user/"
 
