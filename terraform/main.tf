@@ -53,11 +53,11 @@ resource "aws_instance" "web_nodes" {
   count         = 4
   ami           = "ami-0c7217cdde317cfec" # Amazon Linux 2 (Ensure this is valid for us-east-1)
   instance_type = "t3.micro"
-  
+  key_name = "test"
   # These references now work because the resources are defined above
   vpc_security_group_ids = [aws_security_group.all_traffic_sg.id]
   subnet_id              = module.vpc.public_subnets[0]
-
+  iam_instance_profile = aws_iam_instance_profile.ecr_profile.name
   tags = {
     Name = "web-node-${count.index + 1}"
     Role = "web-server"
@@ -68,10 +68,10 @@ resource "aws_instance" "web_nodes" {
 resource "aws_instance" "master_node" {
   ami           = "ami-0c7217cdde317cfec"
   instance_type = "t3.small" # t3.small is better for running Prometheus + Grafana
-  
+  key_name = "test"
   vpc_security_group_ids = [aws_security_group.all_traffic_sg.id]
   subnet_id              = module.vpc.public_subnets[0]
-
+  iam_instance_profile = aws_iam_instance_profile.ecr_profile.name
   tags = {
     Name = "master-node"
     Role = "master"
@@ -85,4 +85,43 @@ output "web_node_ips" {
 
 output "master_node_ip" {
   value = aws_instance.master_node.public_ip
+} 
+# 1. Create the IAM Role
+resource "aws_iam_role" "ecr_readonly_role" {
+  name = "ecr_readonly_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      },
+    ]
+  })
+}
+
+# 2. Attach the ECR Read-Only Policy to the Role
+resource "aws_iam_role_policy_attachment" "ecr_read_only" {
+  role       = aws_iam_role.ecr_readonly_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
+
+# 3. Create the Instance Profile (The "container" for the role)
+resource "aws_iam_instance_profile" "ecr_profile" {
+  name = "ecr_instance_profile"
+  role = aws_iam_role.ecr_readonly_role.name
+}
+resource "local_file" "ansible_inventory" {
+  content  = <<EOT
+[master]
+${aws_instance.master_node.public_ip}
+
+[web_nodes]
+${join("\n", aws_instance.web_nodes[*].public_ip)}
+EOT
+  filename = "inventory.ini"
 }
