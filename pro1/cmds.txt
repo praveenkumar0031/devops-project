@@ -1,0 +1,6 @@
+terraform init
+terraform fmt
+terraform validate
+terraform plan
+terraform apply -auto-approve
+aws eks update-kubeconfig --region us-east-1 --name multi-project-cluster-2
