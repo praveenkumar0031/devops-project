@@ -54,68 +54,7 @@ pipeline {
             }
         }
 
-        // stage('Ansible Config') {
-        //     // ONLY run this stage if we are building (apply), not destroying
-        //     when {
-        //         expression { params.ACTION == 'apply' }
-        //     }
-        //     steps {
-        //         // Ensure the 'SSH Agent' plugin is installed for this to work!
-        //         sshagent(['ec2-ssh-key']) {
-        //             bat 'ansible-playbook -i terraform/inventory.ini setup_docker.yml'
-        //         }
-        //     }
-        // }
-      stage('Ansible Deployment') {
-            when { expression { params.ACTION == 'apply' } }
-            steps {
-                script {
-                    try {
-                        // 1. Get the Master IP
-                        def masterIp = bat(
-                            script: "terraform -chdir=terraform output -raw master_node_ip", 
-                            returnStdout: true
-                        ).split('\r?\n')[-1].trim()
-
-                        withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', 
-                                                          keyFileVariable: 'TEMP_KEY')]) {
-                            
-                            // 2. Use 'type' to copy the content to your workspace
-                            // This bypasses the 'Access Denied' of the 'copy' command
-                            bat "type \"%TEMP_KEY%\" > master_key.pem"
-                            
-                            // 3. Fix Permissions
-                            bat """
-                            icacls master_key.pem /reset
-                            icacls master_key.pem /inheritance:r
-                            icacls master_key.pem /grant:r SYSTEM:(R)
-                            icacls master_key.pem /grant:r Administrators:(R)
-                            """
-
-                            withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', 
-                                                             passwordVariable: 'DOCKER_PASS', 
-                                                             usernameVariable: 'DOCKER_ID')]) {
-                                echo "Waiting for SSH to wake up..."
-                                sleep 30
-                                // 4. SCP and SSH
-                                bat "scp -i master_key.pem -o StrictHostKeyChecking=no deploy_docker.yml terraform/inventory.ini ec2-user@${masterIp}:/home/ec2-user/"
-
-                                bat """
-                                ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} ^
-                                \"sudo yum update -y && ^
-                                 (sudo amazon-linux-extras install ansible2 -y || sudo yum install ansible -y) && ^
-                                 ansible-playbook -i inventory.ini deploy_docker.yml -e 'docker_id=%DOCKER_ID%'\"
-                                """
-                            }
-                        }
-                    } catch (Exception e) {
-                        error "Jump Server Deployment failed: ${e.getMessage()}"
-                    } finally {
-                        bat "if exist master_key.pem del /f master_key.pem"
-                    }
-                }
-            }
-        }
+        
     }
 
     post {
