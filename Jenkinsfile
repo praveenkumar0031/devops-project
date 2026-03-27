@@ -67,64 +67,54 @@ pipeline {
         //     }
         // }
       stage('Ansible Deployment') {
-    when { expression { params.ACTION == 'apply' } }
-    steps {
-        script {
-            try {
-                // 1. Get the Master IP first
-                def masterIp = bat(
-                    script: "terraform -chdir=terraform output -raw master_node_ip", 
-                    returnStdout: true
-                ).split('\r?\n')[-1].trim()
+            when { expression { params.ACTION == 'apply' } }
+            steps {
+                script {
+                    try {
+                        // 1. Get the Master IP
+                        def masterIp = bat(
+                            script: "terraform -chdir=terraform output -raw master_node_ip", 
+                            returnStdout: true
+                        ).split('\r?\n')[-1].trim()
 
-                echo "Targeting Master Node: ${masterIp}"
+                        withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', 
+                                                          keyFileVariable: 'TEMP_KEY')]) {
+                            
+                            // 2. Use 'type' to copy the content to your workspace
+                            // This bypasses the 'Access Denied' of the 'copy' command
+                            bat "type \"%TEMP_KEY%\" > master_key.pem"
+                            
+                            // 3. Fix Permissions
+                            bat """
+                            icacls master_key.pem /reset
+                            icacls master_key.pem /inheritance:r
+                            icacls master_key.pem /grant:r SYSTEM:(R)
+                            icacls master_key.pem /grant:r Administrators:(R)
+                            """
 
-                // 2. Use the credentials specifically to write the file
-                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', 
-                                                  keyFileVariable: 'TEMP_KEY',
-                                                  passphraseVariable: '', 
-                                                  usernameVariable: 'SSH_USER')]) {
-                    
-                    // Use Jenkins internal command to write the key to the workspace
-                    // This avoids the "Access is denied" on the copy command
-                    def keyContent = readFile(TEMP_KEY)
-                    writeFile file: 'master_key.pem', text: keyContent
-                    
-                    // 3. Fix permissions so SSH doesn't complain
-                    bat """
-                    icacls master_key.pem /reset
-                    icacls master_key.pem /inheritance:r
-                    icacls master_key.pem /grant:r SYSTEM:(R)
-                    icacls master_key.pem /grant:r Administrators:(R)
-                    """
+                            withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', 
+                                                             passwordVariable: 'DOCKER_PASS', 
+                                                             usernameVariable: 'DOCKER_ID')]) {
+                                
+                                // 4. SCP and SSH
+                                bat "scp -i master_key.pem -o StrictHostKeyChecking=no deploy_docker.yml terraform/inventory.ini ec2-user@${masterIp}:/home/ec2-user/"
 
-                    withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', 
-                                                     passwordVariable: 'DOCKER_PASS', 
-                                                     usernameVariable: 'DOCKER_ID')]) {
-                        
-                        echo "Uploading files to Master Node..."
-                        
-                        // 4. SCP using the full path to OpenSSH if needed
-                        bat "scp -i master_key.pem -o StrictHostKeyChecking=no deploy_docker.yml terraform/inventory.ini ec2-user@${masterIp}:/home/ec2-user/"
-
-                        // 5. SSH and Run Ansible
-                        bat """
-                        ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} ^
-                        \"sudo yum update -y && ^
-                         (sudo amazon-linux-extras install ansible2 -y || sudo yum install ansible -y) && ^
-                         ansible-playbook -i inventory.ini deploy_docker.yml -e 'docker_id=%DOCKER_ID%'\"
-                        """
+                                bat """
+                                ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} ^
+                                \"sudo yum update -y && ^
+                                 (sudo amazon-linux-extras install ansible2 -y || sudo yum install ansible -y) && ^
+                                 ansible-playbook -i inventory.ini deploy_docker.yml -e 'docker_id=%DOCKER_ID%'\"
+                                """
+                            }
+                        }
+                    } catch (Exception e) {
+                        error "Jump Server Deployment failed: ${e.getMessage()}"
+                    } finally {
+                        bat "if exist master_key.pem del /f master_key.pem"
                     }
                 }
-            } catch (Exception e) {
-                error "Jump Server Deployment failed: ${e.getMessage()}"
-            } finally {
-                // Always clean up the key
-                bat "if exist master_key.pem del /f master_key.pem"
             }
         }
-    }
-}
     }
 
     post {
