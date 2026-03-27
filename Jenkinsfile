@@ -78,6 +78,10 @@ pipeline {
                                                              passwordVariable: 'DOCKER_PASS', 
                                                              usernameVariable: 'DOCKER_ID')]) {
                                 
+                                bat """
+                        icacls "%SSH_KEY_FILE%" /inheritance:r
+                        icacls "%SSH_KEY_FILE%" /grant:r "%USERNAME%":"(R)"
+                        """
                                 // 1. Capture the IP address cleanly
                                 // We use returnStdout: true and .trim() to get just the numbers
                                 def masterIp = bat(
