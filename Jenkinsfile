@@ -80,11 +80,12 @@ pipeline {
                     // -i points to the file created by Terraform
                     // -e passes the username to the playbook
                     // --extra-vars "ansible_ssh_common_args='-o StrictHostKeyChecking=no'" skips the "Are you sure?" prompt
-                    bat """
-                    ansible-playbook -i terraform/inventory.ini deploy_docker.yml \
-                    -e "docker_id=${DOCKER_ID}" \
-                    --extra-vars "ansible_ssh_common_args='-o StrictHostKeyChecking=no'"
-                    """
+                   bat """
+                            ansible-playbook -i terraform/inventory.ini deploy_docker.yml ^
+                            -e "docker_id=%DOCKER_ID%" ^
+                            --private-key "%SSH_KEY_FILE%" ^
+                            --ssh-common-args="-o StrictHostKeyChecking=no"
+                            """
                 }
             }
         }
@@ -93,8 +94,14 @@ pipeline {
     }
 
     post {
+        success {
+            echo "Successfully completed ${params.ACTION}!"
+        }
+        failure {
+            echo "Pipeline failed during ${params.ACTION}. Check the logs above for the specific error."
+        }
         always {
-            echo "Action ${params.ACTION} has been completed."
+            echo "Cleaned up workspace for Action: ${params.ACTION}"
         }
     }
 }
