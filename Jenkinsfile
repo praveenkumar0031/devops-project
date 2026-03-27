@@ -82,7 +82,7 @@ pipeline {
                         
                         // 1. Get the Public IP of your 'Master' node from Terraform
                         // Note: Ensure your terraform output defines 'master_public_ip'
-                        def masterIp = bat(script: "terraform -chdir=terraform output -raw master_public_ip", returnStdout: true).trim()
+                        def masterIp = bat(script: "terraform -chdir=terraform output -raw master_node_ip", returnStdout: true).trim()
 
                         echo "Targeting Master Node: ${masterIp}"
 
