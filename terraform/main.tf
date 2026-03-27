@@ -12,58 +12,40 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# 2. VPC Module
-module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.0"
-
-  name = "manual-devops-vpc"
-  cidr = "10.0.0.0/16"
-
-  azs             = ["us-east-1a", "us-east-1b"]
-  public_subnets  = ["10.0.1.0/24", "10.0.2.0/24"]
-
-  enable_dns_hostnames = true
-  enable_dns_support   = true
-  map_public_ip_on_launch = true
+# 2. Data Sources (Fetch existing VPC and Security Group)
+data "aws_vpc" "existing_vpc" {
+  id = "vpc-05f26ea6ac1d955ad"
 }
 
-# 3. Security Group
-resource "aws_security_group" "all_traffic_sg" {
-  name_prefix = "allow-all-traffic-"
-  vpc_id      = module.vpc.vpc_id
+data "aws_security_group" "existing_all_traffic" {
+  id = "sg-0f82e8de6ec7c6a4d"
+}
 
-  ingress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "allow-all-traffic"
+# Fetch the first public subnet in your existing VPC
+# Note: Terraform needs a subnet to launch instances. 
+# This fetches subnets belonging to your specific VPC.
+data "aws_subnets" "existing_subnets" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.existing_vpc.id]
   }
 }
 
-# 4. The 4 Web Nodes (Static Pages)
+# 3. The 2 Web Nodes
 resource "aws_instance" "web_nodes" {
   count         = 2
   ami           = "ami-0c7217cdde317cfec" 
   instance_type = "t3.micro"
-  key_name      = "test" # Updated to 'test'
+  key_name      = "test" 
   
-  vpc_security_group_ids = [aws_security_group.all_traffic_sg.id]
-  subnet_id              = module.vpc.public_subnets[0]
+  # Use the ID of your pre-existing Security Group
+  vpc_security_group_ids = [data.aws_security_group.existing_all_traffic.id]
+  
+  # Launch in the first available subnet of your VPC
+  subnet_id              = data.aws_subnets.existing_subnets.ids[0]
+  
   iam_instance_profile   = aws_iam_instance_profile.ecr_profile.name
 
-  # Storage: 6GB per node (4 * 6 = 24GB)
   root_block_device {
     volume_size           = 10
     volume_type           = "gp3"
@@ -76,17 +58,16 @@ resource "aws_instance" "web_nodes" {
   }
 }
 
-# 5. The Master Node (Ansible, Prometheus, Grafana)
+# 4. The Master Node
 resource "aws_instance" "master_node" {
   ami           = "ami-0c7217cdde317cfec"
   instance_type = "t3.small" 
-  key_name      = "test" # Updated to 'test'
+  key_name      = "test" 
   
-  vpc_security_group_ids = [aws_security_group.all_traffic_sg.id]
-  subnet_id              = module.vpc.public_subnets[0]
+  vpc_security_group_ids = [data.aws_security_group.existing_all_traffic.id]
+  subnet_id              = data.aws_subnets.existing_subnets.ids[0]
   iam_instance_profile   = aws_iam_instance_profile.ecr_profile.name
 
-  # Storage: 6GB for Master (Total: 24GB + 6GB = 30GB)
   root_block_device {
     volume_size           = 10
     volume_type           = "gp3"
@@ -99,7 +80,7 @@ resource "aws_instance" "master_node" {
   }
 }
 
-# 6. IAM Components (ECR ReadOnly)
+# 5. IAM Components (Remains the same)
 resource "aws_iam_role" "ecr_readonly_role" {
   name = "ecr_readonly_role"
   assume_role_policy = jsonencode({
@@ -122,7 +103,7 @@ resource "aws_iam_instance_profile" "ecr_profile" {
   role = aws_iam_role.ecr_readonly_role.name
 }
 
-# 7. Outputs & Inventory Generation
+# 6. Outputs & Inventory Generation
 output "web_node_ips" { value = aws_instance.web_nodes[*].public_ip }
 output "master_node_ip" { value = aws_instance.master_node.public_ip }
 
