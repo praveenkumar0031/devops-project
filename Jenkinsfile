@@ -66,31 +66,38 @@ pipeline {
         //         }
         //     }
         // }
-        stage('Ansible Deployment') {
-    when { expression { params.ACTION == 'apply' } }
-    steps {
-        // This ID must match the SSH Key you added to Jenkins Credentials
-        sshagent(['ec2-ssh-key']) {
-            script {
-                // We pull the DOCKER_ID again to pass it to Ansible
-                withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', 
-                                                 passwordVariable: 'DOCKER_PASS', 
-                                                 usernameVariable: 'DOCKER_ID')]) {
-                    
-                    // -i points to the file created by Terraform
-                    // -e passes the username to the playbook
-                    // --extra-vars "ansible_ssh_common_args='-o StrictHostKeyChecking=no'" skips the "Are you sure?" prompt
-                   bat """
-                            ansible-playbook -i terraform/inventory.ini deploy_docker.yml ^
-                            -e "docker_id=%DOCKER_ID%" ^
-                            --private-key "%SSH_KEY_FILE%" ^
-                            --ssh-common-args="-o StrictHostKeyChecking=no"
-                            """
+       stage('Ansible Deployment') {
+            when { expression { params.ACTION == 'apply' } }
+            steps {
+                script {
+                    try {
+                        // 1. Pull the SSH key as a temporary file variable %SSH_KEY_FILE%
+                        withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', 
+                                                          keyFileVariable: 'SSH_KEY_FILE')]) {
+                            
+                            // 2. Pull Docker Hub credentials
+                            withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', 
+                                                             passwordVariable: 'DOCKER_PASS', 
+                                                             usernameVariable: 'DOCKER_ID')]) {
+                                
+                                echo "Starting Ansible deployment to EC2..."
+                                
+                                // We use --private-key %SSH_KEY_FILE% to avoid needing ssh-agent
+                                bat """
+                                ansible-playbook -i terraform/inventory.ini deploy_docker.yml ^
+                                -e "docker_id=%DOCKER_ID%" ^
+                                --private-key "%SSH_KEY_FILE%" ^
+                                --ssh-common-args="-o StrictHostKeyChecking=no"
+                                """
+                            }
+                        }
+                    } catch (Exception e) {
+                        // This will catch the error and show it clearly in the Jenkins UI
+                        error "Ansible Deployment failed: ${e.getMessage()}"
+                    }
                 }
             }
         }
-    }
-}
     }
 
     post {
