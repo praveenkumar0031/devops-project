@@ -54,7 +54,7 @@ resource "aws_security_group" "all_traffic_sg" {
 
 # 4. The 4 Web Nodes (Static Pages)
 resource "aws_instance" "web_nodes" {
-  count         = 4
+  count         = 2
   ami           = "ami-0c7217cdde317cfec" 
   instance_type = "t3.micro"
   key_name      = "test" # Updated to 'test'
@@ -65,7 +65,7 @@ resource "aws_instance" "web_nodes" {
 
   # Storage: 6GB per node (4 * 6 = 24GB)
   root_block_device {
-    volume_size           = 6
+    volume_size           = 10
     volume_type           = "gp3"
     delete_on_termination = true
   }
@@ -88,7 +88,7 @@ resource "aws_instance" "master_node" {
 
   # Storage: 6GB for Master (Total: 24GB + 6GB = 30GB)
   root_block_device {
-    volume_size           = 6
+    volume_size           = 10
     volume_type           = "gp3"
     delete_on_termination = true
   }
