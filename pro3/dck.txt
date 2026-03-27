@@ -1,0 +1,3 @@
+docker build -t static-page-1 .
+
+docker run -d --name my-static-site -p 8080:80 static-page-1
