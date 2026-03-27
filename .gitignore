@@ -1,0 +1,37 @@
+# Terraform directories
+.terraform/
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+
+# Crash logs
+crash.log
+
+# Exclude sensitive variable files
+*.tfvars
+*.tfvars.json
+
+# Ignore override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ignore CLI config files
+.terraformrc
+terraform.rc
+
+# Ignore lock file (optional: include if team wants reproducibility)
+# Uncomment below if you DON'T want to track it
+# .terraform.lock.hcl
+
+# Ignore plan output files
+*.tfplan
+
+# Ignore provider logs
+*.log
+
+# MacOS / Windows junk
+.DS_Store
+Thumbs.db
