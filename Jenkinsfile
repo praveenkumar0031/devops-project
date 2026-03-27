@@ -1,5 +1,13 @@
 pipeline {
     agent any
+
+    parameters {
+        choice(
+            name: 'ACTION',
+            choices: ['apply', 'destroy'],
+            description: 'Choose whether to Create or Destroy the infrastructure.'
+        )
+    }
     
     environment {
         AWS_ACCESS_KEY_ID     = credentials('aws-access-key-id')
@@ -13,26 +21,34 @@ pipeline {
                 checkout scm
             }
         }
-        
 
         stage('Terraform Operations') {
             steps {
-                // This tells Jenkins to move into the 'terraform' folder
                 dir('terraform') {
                     bat 'terraform init'
-                    bat 'terraform plan'
-                    bat 'terraform apply -auto-approve'
+                    // This uses the parameter you chose at the start
+                    bat "terraform ${params.ACTION} -auto-approve"
                 }
             }
         }
+
         stage('Ansible Config') {
-    steps {
-        // This helper pulls the key from Jenkins memory, NOT from your files
-        sshagent(['ec2-ssh-key']) {
-            bat 'ansible-playbook -i terraform/inventory.ini setup_docker.yml'
+            // ONLY run this stage if we are building (apply), not destroying
+            when {
+                expression { params.ACTION == 'apply' }
+            }
+            steps {
+                // Ensure the 'SSH Agent' plugin is installed for this to work!
+                sshagent(['ec2-ssh-key']) {
+                    bat 'ansible-playbook -i terraform/inventory.ini setup_docker.yml'
+                }
+            }
         }
     }
-}
-        
+
+    post {
+        always {
+            echo "Action ${params.ACTION} has been completed."
+        }
     }
 }
