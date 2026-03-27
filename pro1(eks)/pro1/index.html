@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ping Pong </title>
+
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+    font-family: Arial;
+    color:white;
+    background: linear-gradient(135deg,#1e3c72,#2a5298);
+    overflow:auto;
+}
+
+canvas {
+    background:black;
+    border-radius:12px;
+    box-shadow:0 0 25px cyan;
+    width:min(95vw, 800px);
+    height:auto;
+}
+
+button {
+    padding:10px 15px;
+    margin:5px;
+    border:none;
+    border-radius:8px;
+    background:#ff9800;
+    color:white;
+    cursor:pointer;
+}
+</style>
+
+</head>
+
+<body>
+
+<h1>🎮 Ping Pong Game</h1>
+
+<div>
+    <button id="startBtn">Start</button>
+    <p id="score">Score: 0</p>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+// resize
+canvas.width = 800;
+canvas.height = 500;
+
+// game variables
+let paddle, bot, ball;
+let speed = 4;
+let score = 0;
+let running = false;
+const TARGET_RALLY = 20;
+
+// init
+function init(){
+    paddle = { x: 350, y: 470, w:120, h:10 };
+    bot    = { x: 350, y: 20,  w:120, h:10 };
+
+    resetBall();
+}
+
+// reset ball
+function resetBall(){
+    ball = {
+        x: canvas.width/2,
+        y: canvas.height/2,
+        dx: speed * (Math.random() > 0.5 ? 1 : -1),
+        dy: speed,
+        r: 8
+    };
+}
+
+// draw
+function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // paddle
+    ctx.fillStyle="cyan";
+    ctx.fillRect(paddle.x,paddle.y,paddle.w,paddle.h);
+
+    // bot
+    ctx.fillStyle="orange";
+    ctx.fillRect(bot.x,bot.y,bot.w,bot.h);
+
+    // ball
+    ctx.beginPath();
+    ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+    ctx.fillStyle="red";
+    ctx.fill();
+}
+
+// bot AI
+function moveBot(){
+    // Keep bot very accurate for early rally so it can return shots reliably.
+    const followStrength = score < TARGET_RALLY ? 0.24 : 0.12;
+    bot.x += (ball.x - (bot.x + bot.w/2)) * followStrength;
+
+    if(bot.x < 0) bot.x = 0;
+    if(bot.x + bot.w > canvas.width) bot.x = canvas.width - bot.w;
+}
+
+// main loop
+function loop(){
+    if(!running) return;
+
+    moveBot();
+
+    // move ball
+    ball.x += ball.dx;
+    ball.y += ball.dy;
+
+    // wall bounce
+    if(ball.x < 0 || ball.x > canvas.width)
+        ball.dx *= -1;
+
+    if(ball.y + ball.r < 0){
+        alert("You Win! Score: " + score);
+        running = false;
+        return;
+    }
+
+    // user paddle collision 🔥
+    if(
+        ball.y + ball.r >= paddle.y &&
+        ball.x >= paddle.x &&
+        ball.x <= paddle.x + paddle.w
+    ){
+        score++;
+
+        // increase speed
+        speed += 0.5;
+        if(speed > 12) speed = 12;
+
+        // apply speed
+        ball.dy = -speed;
+
+        // angle effect
+        let hit = ball.x - (paddle.x + paddle.w/2);
+        ball.dx = hit * 0.15;
+    }
+
+    // bot collision
+    const botCatchWidth = score < TARGET_RALLY ? bot.w + 180 : bot.w;
+    const botLeft = bot.x - (botCatchWidth - bot.w) / 2;
+    const botRight = botLeft + botCatchWidth;
+
+    if(
+        ball.y - ball.r <= bot.y + bot.h &&
+        ball.x >= botLeft &&
+        ball.x <= botRight
+    ){
+        ball.dy = speed;
+    }
+
+    // missed ball
+    if(ball.y > canvas.height){
+        alert("Game Over! Score: " + score);
+        running = false;
+        return;
+    }
+
+    draw();
+    document.getElementById("score").innerText = "Score: " + score;
+
+    requestAnimationFrame(loop);
+}
+
+// controls
+document.addEventListener("keydown", e=>{
+    if(!paddle) return;
+
+    if(e.key==="ArrowLeft"){
+        paddle.x -= 25;
+        if(paddle.x < 0) paddle.x = 0;
+    }
+
+    if(e.key==="ArrowRight"){
+        paddle.x += 25;
+        if(paddle.x + paddle.w > canvas.width)
+            paddle.x = canvas.width - paddle.w;
+    }
+});
+
+// mouse
+canvas.addEventListener("mousemove", e=>{
+    if(!paddle) return;
+
+    const rect = canvas.getBoundingClientRect();
+    paddle.x = e.clientX - rect.left - paddle.w/2;
+
+    if(paddle.x < 0) paddle.x = 0;
+    if(paddle.x + paddle.w > canvas.width)
+        paddle.x = canvas.width - paddle.w;
+});
+
+// start button
+document.getElementById("startBtn").onclick = ()=>{
+    score = 0;
+    speed = 4;
+    init();
+    running = true;
+    loop();
+};
+</script>
+
+</body>
+</html>

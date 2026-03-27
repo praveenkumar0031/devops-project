@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ping-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ping
+  template:
+    metadata:
+      labels:
+        app: ping
+    spec:
+      containers:
+      - name: ping-container
+        image: nginx:alpine
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+
+        volumeMounts:
+        - name: html-volume
+          mountPath: /usr/share/nginx/html
+
+      volumes:
+      - name: html-volume
+        configMap:
+          name: my-html
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ping-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: ping
+  ports:
+  - port: 80
+    targetPort: 80
+    nodePort: 30001
