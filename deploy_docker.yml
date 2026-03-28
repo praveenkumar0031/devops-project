@@ -1,29 +1,50 @@
 ---
 - name: Deploy Docker Projects to EC2
-  hosts: all
+  hosts: web_nodes
   become: yes
   vars:
-    # This will be passed from Jenkins
-    docker_username: "{{ docker_id }}"
-  
-  tasks:
-    - name: Install Docker
-      apt:
-        name: docker.io
-        state: present
-        update_cache: yes
+    # Matches the DOCKER_USER from your Jenkins environment
+    docker_username: "praveen0031"
+    ansible_python_interpreter: /usr/bin/python3
+    projects:
+      - { name: "pro1", port: "8081" }
+      - { name: "pro2", port: "8082" }
+      - { name: "pro3", port: "8083" }
+      - { name: "pro4", port: "8084" }
 
-    - name: Start Docker Service
+  tasks:
+    - name: Install Docker and Dependencies
+      yum:
+        name: 
+          - docker
+          - python3-pip
+        state: present
+
+    - name: Install Docker SDK for Python
+      pip:
+        name: docker
+        executable: pip3
+
+    - name: Start and Enable Docker Service
       service:
         name: docker
         state: started
         enabled: yes
 
-    - name: Pull and Run Application
+    - name: Ensure ec2-user is in docker group
+      user:
+        name: ec2-user
+        groups: docker
+        append: yes
+
+    - name: Pull and Run All Project Containers
       docker_container:
-        name: "web-container"
-        image: "{{ docker_username }}/pro1:latest"
+        name: "{{ item.name }}-container"
+        image: "{{ docker_username }}/{{ item.name }}:latest"
         state: started
+        # Mapping different host ports to container port 80 (or your app port)
         ports:
-          - "80:80"
+          - "{{ item.port }}:80"
         restart_policy: always
+        pull: yes
+      loop: "{{ projects }}"
