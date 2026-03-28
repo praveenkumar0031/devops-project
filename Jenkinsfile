@@ -92,13 +92,12 @@ pipeline {
             when { expression { params.ACTION == 'apply' } }
             steps {
                 script {
-                    // Fetch the Master IP again for this specific stage
                     def masterIpRaw = bat(script: "terraform -chdir=terraform output -raw master_node_ip", returnStdout: true)
                     def masterIp = masterIpRaw.split('\r?\n')[-1].trim()
 
                     withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'TEMP_KEY')]) {
                         
-                        // 1. Fix Windows Permissions (The "Bad Permissions" Fix)
+                        // 1. Fix Windows Permissions
                         bat """
                         copy /Y "%TEMP_KEY%" master_key.pem
                         icacls master_key.pem /reset
@@ -109,15 +108,21 @@ pipeline {
                         icacls master_key.pem /remove "Everyone"
                         """
 
-                        // 2. Define the Command using sudo
-                        // We use 'sudo docker' because the ec2-user group might not be active yet
-                        def nodeExpCmd = "sudo docker run -d --name node-exporter --net='host' --pid='host' -v '/:/host:ro,rslave' quay.io/prometheus/node-exporter:latest --path.rootfs=/host"
+                        // 2. Install Docker + Run Node Exporter
+                        // This ensures the commands don't fail even if it's a fresh instance
+                        def installAndRun = [
+                            "sudo yum update -y",
+                            "sudo yum install -y docker",
+                            "sudo systemctl start docker",
+                            "sudo systemctl enable docker",
+                            "sudo docker stop node-exporter || true",
+                            "sudo docker rm node-exporter || true",
+                            "sudo docker run -d --name node-exporter --net='host' --pid='host' -v '/:/host:ro,rslave' quay.io/prometheus/node-exporter:latest --path.rootfs=/host"
+                        ].join(" && ")
 
-                        // 3. Execute: Stop, Remove, and Run
-                        echo "Deploying Node Exporter to Master Node: ${masterIp}"
-                        bat "ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} \"sudo docker stop node-exporter || true && sudo docker rm node-exporter || true && ${nodeExpCmd}\""
+                        echo "Installing Docker and Node Exporter on Master: ${masterIp}"
+                        bat "ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} \"${installAndRun}\""
                         
-                        // 4. Cleanup local key
                         bat "del master_key.pem"
                     }
                 }
