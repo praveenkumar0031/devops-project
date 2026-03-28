@@ -118,11 +118,10 @@ pipeline {
 
                         // 4. Run Ansible on the Master Node
                         // Note: Using 'ec2-user' and 'dnf' for Amazon Linux 2023
-                        bat """
-                        ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} ^
-                        "sudo dnf install -y ansible && ^
-                         ansible-playbook -i inventory.ini deploy_docker.yml"
-                        """
+                        // 4. Run Ansible on the Master Node
+bat """
+ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} "sudo dnf install -y ansible && ansible-playbook -i inventory.ini deploy_docker.yml"
+"""
                         
                         // Cleanup
                         bat "del master_key.pem"
