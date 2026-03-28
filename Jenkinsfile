@@ -206,6 +206,8 @@ pipeline {
         }
         failure {
             echo "Pipeline failed during ${params.ACTION}. Check the logs."
+        }always{
+            echo "Pipeline compelted  ${params.ACTION}."
         }
     }
 }
