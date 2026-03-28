@@ -38,14 +38,14 @@
         groups: docker
         append: yes
 
-    - name: Pull and Run All Project Containers
-      docker_container:
-        name: "{{ item.name }}-container"
-        image: "{{ docker_username }}/{{ item.name }}:latest"
-        state: started
-        # Mapping different host ports to container port 80 (or your app port)
-        ports:
-          - "{{ item.port }}:80"
-        restart_policy: always
-        pull: yes
+    - name: Pull and Run All Project Containers (Direct Command)
+      shell: |
+        docker pull {{ docker_username }}/{{ item.name }}:latest
+        docker stop {{ item.name }}-container || true
+        docker rm {{ item.name }}-container || true
+        docker run -d \
+          --name {{ item.name }}-container \
+          --restart always \
+          -p {{ item.port }}:80 \
+          {{ docker_username }}/{{ item.name }}:latest
       loop: "{{ projects }}"
