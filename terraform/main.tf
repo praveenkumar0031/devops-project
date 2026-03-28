@@ -37,7 +37,7 @@ resource "aws_instance" "web_nodes" {
   ami           = "ami-0c7217cdde317cfec" 
   instance_type = "t3.micro"
   key_name      = "test" 
-  
+  associate_public_ip_address = true
   # Use the ID of your pre-existing Security Group
   vpc_security_group_ids = [data.aws_security_group.existing_all_traffic.id]
   
@@ -63,6 +63,7 @@ resource "aws_instance" "master_node" {
   ami           = "ami-0c7217cdde317cfec"
   instance_type = "t3.small" 
   key_name      = "test" 
+  associate_public_ip_address = true
   
   vpc_security_group_ids = [data.aws_security_group.existing_all_traffic.id]
   subnet_id              = data.aws_subnets.existing_subnets.ids[0]
