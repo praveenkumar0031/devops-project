@@ -92,43 +92,32 @@ pipeline {
         //     }
         // }
         stage('Connect & Deploy Ansible') {
-            when { expression { params.ACTION == 'apply' } }
-            steps {
-                script {
-                    // 1. Extract Master IP from Terraform Output (Windows-friendly trim)
-                    def masterIpRaw = bat(script: "terraform -chdir=terraform output -raw master_node_ip", returnStdout: true)
-                    def masterIp = masterIpRaw.split('\r?\n')[-1].trim()
-                    
-                    echo "Connecting to Amazon Linux Master Node at: ${masterIp}"
+    when { expression { params.ACTION == 'apply' } }
+    steps {
+        script {
+            def masterIpRaw = bat(script: "terraform -chdir=terraform output -raw master_node_ip", returnStdout: true)
+            def masterIp = masterIpRaw.split('\r?\n')[-1].trim()
 
-                    // 2. SSH connection using Jenkins Credentials
-                    withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'TEMP_KEY')]) {
-                        
-                        // Fix Windows permissions for the .pem file so SSH doesn't reject it
-                        bat """
-                        copy /Y "%TEMP_KEY%" master_key.pem
-                        icacls master_key.pem /reset
-                        icacls master_key.pem /inheritance:r
-                        icacls master_key.pem /grant:r SYSTEM:(R)
-                        icacls master_key.pem /grant:r Administrators:(R)
-                        """
+            withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'TEMP_KEY')]) {
+                bat """
+                copy /Y "%TEMP_KEY%" master_key.pem
+                icacls master_key.pem /reset
+                icacls master_key.pem /grant:r Administrators:(R)
+                """
 
-                        // 3. Upload inventory and playbook to ec2-user
-                        bat "scp -i master_key.pem -o StrictHostKeyChecking=no deploy_docker.yml terraform/inventory.ini ec2-user@${masterIp}:/home/ec2-user/"
+                // Send key and files to Master
+                bat "scp -i master_key.pem -o StrictHostKeyChecking=no master_key.pem deploy_docker.yml terraform/inventory.ini ec2-user@${masterIp}:/home/ec2-user/"
 
-                        // 4. Run Ansible on the Master Node
-                        // Note: Using 'ec2-user' and 'dnf' for Amazon Linux 2023
-                        // 4. Run Ansible on the Master Node
-bat """
-ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} "sudo dnf install -y ansible && ansible-playbook -i inventory.ini deploy_docker.yml"
-"""
-                        
-                        // Cleanup
-                        bat "del master_key.pem"
-                    }
-                }
+                // Execute on Master
+                bat """
+                ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} "sudo yum install -y ansible && chmod 400 master_key.pem && ansible-playbook -i inventory.ini deploy_docker.yml"
+                """
+                
+                bat "del master_key.pem"
             }
         }
+    }
+}
     }
 
     post {
