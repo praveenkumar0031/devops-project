@@ -89,39 +89,47 @@ pipeline {
             }
         }
         stage('Setup Monitoring') {
-            when { expression { params.ACTION == 'apply' } }
-            steps {
-                script {
-                    def masterIpRaw = bat(script: "terraform -chdir=terraform output -raw master_node_ip", returnStdout: true)
-                    def masterIp = masterIpRaw.split('\r?\n')[-1].trim()
+    when { expression { params.ACTION == 'apply' } }
+    steps {
+        script {
+            def masterIpRaw = bat(script: "terraform -chdir=terraform output -raw master_node_ip", returnStdout: true)
+            def masterIp = masterIpRaw.split('\r?\n')[-1].trim()
 
-                    withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'TEMP_KEY')]) {
-                        // Use the existing icacls logic to handle the key
-                        bat "copy /Y \"%TEMP_KEY%\" master_key.pem"
-                        
-                        // Upload the dynamically generated config
-                        bat "scp -i master_key.pem -o StrictHostKeyChecking=no terraform/prometheus.yml ec2-user@${masterIp}:/home/ec2-user/"
+            withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'TEMP_KEY')]) {
+                
+                // 1. Handle Key Permissions (Windows icacls)
+                bat "copy /Y \"%TEMP_KEY%\" master_key.pem"
+                bat "icacls master_key.pem /reset"
+                bat "icacls master_key.pem /inheritance:r"
+                bat "icacls master_key.pem /grant:r \"%USERNAME%\":(R)"
+                bat "icacls master_key.pem /grant:r SYSTEM:(R)"
 
-                        // Deploy Monitoring Containers
-                        bat """
-                        ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} \"
-                        docker stop prometheus grafana || true;
-                        docker rm prometheus grafana || true;
-                        
-                        # Run Prometheus
-                        docker run -d --name prometheus -p 9090:9090 \
-                        -v /home/ec2-user/prometheus.yml:/etc/prometheus/prometheus.yml \
-                        prom/prometheus;
+                // 2. Upload the Prometheus config
+                echo "Uploading prometheus.yml to ${masterIp}..."
+                bat "scp -i master_key.pem -o StrictHostKeyChecking=no terraform/prometheus.yml ec2-user@${masterIp}:/home/ec2-user/prometheus.yml"
 
-                        # Run Grafana
-                        docker run -d --name grafana -p 3000:3000 \
-                        -e 'GF_SECURITY_ADMIN_PASSWORD=admin' \
-                        grafana/grafana-oss\"
-                        """
-                    }
-                }
+                // 3. Prepare Docker on Master (Single line commands for SSH)
+                echo "Initializing Docker on Master..."
+                bat "ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} \"sudo yum install -y docker && sudo systemctl start docker && sudo usermod -aG docker ec2-user\""
+
+                // 4. Deploy Monitoring Stack
+                echo "Deploying Prometheus and Grafana..."
+                // Using a semicolon-separated string for the remote bash commands
+                def dockerCmds = [
+                    "docker stop prometheus grafana || true",
+                    "docker rm prometheus grafana || true",
+                    "docker run -d --name prometheus -p 9090:9090 -v /home/ec2-user/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus --config.file=/etc/prometheus/prometheus.yml",
+                    "docker run -d --name grafana -p 3000:3000 --restart always -e 'GF_SECURITY_ADMIN_PASSWORD=admin' grafana/grafana-oss"
+                ].join(" && ")
+
+                bat "ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} \"${dockerCmds}\""
+                
+                // 5. Cleanup local workspace
+                bat "del master_key.pem"
             }
         }
+    }
+}
     }
 
     post {
