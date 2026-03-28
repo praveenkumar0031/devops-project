@@ -120,7 +120,6 @@ ${join("\n", [for ip in aws_instance.web_nodes[*].public_ip : "${ip} ansible_use
 EOT
   filename = "inventory.ini"
 }
-
 resource "local_file" "prometheus_config" {
   content  = <<EOT
 global:
@@ -130,6 +129,10 @@ scrape_configs:
   - job_name: 'ec2-workers'
     static_configs:
       - targets: ${jsonencode([for ip in aws_instance.web_nodes[*].private_ip : "${ip}:9100"])}
+
+  - job_name: 'node-exporter-master'
+    static_configs:
+      - targets: ['localhost:9100']
 EOT
   filename = "${path.module}/prometheus.yml"
 }

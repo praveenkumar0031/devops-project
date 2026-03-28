@@ -88,48 +88,54 @@ pipeline {
                 }
             }
         }
-        stage('Setup Monitoring') {
-    when { expression { params.ACTION == 'apply' } }
-    steps {
-        script {
-            def masterIpRaw = bat(script: "terraform -chdir=terraform output -raw master_node_ip", returnStdout: true)
-            def masterIp = masterIpRaw.split('\r?\n')[-1].trim()
+        stage('Deploy Node Exporter') {
+            when { expression { params.ACTION == 'apply' } }
+            steps {
+                script {
+                    def masterIpRaw = bat(script: "terraform -chdir=terraform output -raw master_node_ip", returnStdout: true)
+                    def masterIp = masterIpRaw.split('\r?\n')[-1].trim()
 
-            withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'TEMP_KEY')]) {
-                
-                // 1. Handle Key Permissions (Windows icacls)
-                bat "copy /Y \"%TEMP_KEY%\" master_key.pem"
-                bat "icacls master_key.pem /reset"
-                bat "icacls master_key.pem /inheritance:r"
-                bat "icacls master_key.pem /grant:r \"%USERNAME%\":(R)"
-                bat "icacls master_key.pem /grant:r SYSTEM:(R)"
-
-                // 2. Upload the Prometheus config
-                echo "Uploading prometheus.yml to ${masterIp}..."
-                bat "scp -i master_key.pem -o StrictHostKeyChecking=no terraform/prometheus.yml ec2-user@${masterIp}:/home/ec2-user/prometheus.yml"
-
-                // 3. Prepare Docker on Master (Single line commands for SSH)
-                echo "Initializing Docker on Master..."
-                bat "ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} \"sudo yum install -y docker && sudo systemctl start docker && sudo usermod -aG docker ec2-user\""
-
-                // 4. Deploy Monitoring Stack
-                echo "Deploying Prometheus and Grafana..."
-                // Using a semicolon-separated string for the remote bash commands
-                def dockerCmds = [
-                    "docker stop prometheus grafana || true",
-                    "docker rm prometheus grafana || true",
-                    "docker run -d --name prometheus -p 9090:9090 -v /home/ec2-user/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus --config.file=/etc/prometheus/prometheus.yml",
-                    "docker run -d --name grafana -p 3000:3000 --restart always -e 'GF_SECURITY_ADMIN_PASSWORD=admin' grafana/grafana-oss"
-                ].join(" && ")
-
-                bat "ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} \"${dockerCmds}\""
-                
-                // 5. Cleanup local workspace
-                bat "del master_key.pem"
+                    withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'TEMP_KEY')]) {
+                        bat "copy /Y \"%TEMP_KEY%\" master_key.pem"
+                        // Using Docker to run Node Exporter on the Master (and/or Workers)
+                        // It needs host network and pid mode to see system metrics properly
+                        def nodeExpCmd = "docker run -d --name node-exporter --net='host' --pid='host' -v '/:/host:ro,rslave' quay.io/prometheus/node-exporter:latest --path.rootfs=/host"
+                        
+                        bat "ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} \"docker stop node-exporter || true && docker rm node-exporter || true && ${nodeExpCmd}\""
+                        bat "del master_key.pem"
+                    }
+                }
             }
         }
-    }
-}
+
+        stage('Setup Monitoring') {
+            when { expression { params.ACTION == 'apply' } }
+            steps {
+                script {
+                    def masterIpRaw = bat(script: "terraform -chdir=terraform output -raw master_node_ip", returnStdout: true)
+                    def masterIp = masterIpRaw.split('\r?\n')[-1].trim()
+
+                    withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'TEMP_KEY')]) {
+                        bat "copy /Y \"%TEMP_KEY%\" master_key.pem"
+                        bat "icacls master_key.pem /reset"
+                        bat "icacls master_key.pem /inheritance:r"
+                        bat "icacls master_key.pem /grant:r %USERDOMAIN%\\%USERNAME%:(R)"
+
+                        bat "scp -i master_key.pem -o StrictHostKeyChecking=no terraform/prometheus.yml ec2-user@${masterIp}:/home/ec2-user/prometheus.yml"
+
+                        def dockerCmds = [
+                            "docker stop prometheus grafana || true",
+                            "docker rm prometheus grafana || true",
+                            "docker run -d --name prometheus -p 9090:9090 -v /home/ec2-user/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus --config.file=/etc/prometheus/prometheus.yml",
+                            "docker run -d --name grafana -p 3000:3000 --restart always -e 'GF_SECURITY_ADMIN_PASSWORD=admin' grafana/grafana-oss"
+                        ].join(" && ")
+
+                        bat "ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} \"${dockerCmds}\""
+                        bat "del master_key.pem"
+                    }
+                }
+            }
+        }
     }
 
     post {

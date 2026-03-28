@@ -1,22 +1,16 @@
 ---
-- name: Deploy Docker Projects to EC2
+- name: Deploy Docker Projects and Node Exporter to EC2
   hosts: web_nodes
   become: yes
   vars:
     docker_username: "praveen0031"
     ansible_python_interpreter: /usr/bin/python3
-    projects:
-      - { name: "pro1", port: "8081" }
-      - { name: "pro2", port: "8082" }
-      - { name: "pro3", port: "8083" }
-      - { name: "pro4", port: "8084" }
 
   tasks:
     - name: Install Docker and Dependencies
       yum:
         name: 
           - docker
-          - python3-pip
         state: present
 
     - name: Start and Enable Docker Service
@@ -33,7 +27,6 @@
 
     - name: Run Node Exporter for Prometheus Metrics
       shell: |
-        docker pull prom/node-exporter:latest
         docker stop node-exporter || true
         docker rm node-exporter || true
         docker run -d \
@@ -42,17 +35,30 @@
           --net="host" \
           --pid="host" \
           -v "/:/host:ro,rslave" \
-          -p 9100:9100 \
-          prom/node-exporter:latest
+          prom/node-exporter:latest \
+          --path.rootfs=/host
+      # Note: Port 9100 is exposed via --net="host" automatically
 
-    - name: Pull and Run All Project Containers (Direct Command)
+    # --- NODE 1 PROJECTS ---
+    - name: Deploy Pro1 and Pro2 to Node 1
+      when: inventory_hostname == groups['web_nodes'][0]
       shell: |
         docker pull {{ docker_username }}/{{ item.name }}:latest
         docker stop {{ item.name }}-container || true
         docker rm {{ item.name }}-container || true
-        docker run -d \
-          --name {{ item.name }}-container \
-          --restart always \
-          -p {{ item.port }}:80 \
-          {{ docker_username }}/{{ item.name }}:latest
-      loop: "{{ projects }}"
+        docker run -d --name {{ item.name }}-container --restart always -p {{ item.port }}:80 {{ docker_username }}/{{ item.name }}:latest
+      loop:
+        - { name: "pro1", port: "8081" }
+        - { name: "pro2", port: "8082" }
+
+    # --- NODE 2 PROJECTS ---
+    - name: Deploy Pro3 and Pro4 to Node 2
+      when: inventory_hostname == groups['web_nodes'][1]
+      shell: |
+        docker pull {{ docker_username }}/{{ item.name }}:latest
+        docker stop {{ item.name }}-container || true
+        docker rm {{ item.name }}-container || true
+        docker run -d --name {{ item.name }}-container --restart always -p {{ item.port }}:80 {{ docker_username }}/{{ item.name }}:latest
+      loop:
+        - { name: "pro3", port: "8083" }
+        - { name: "pro4", port: "8084" }
