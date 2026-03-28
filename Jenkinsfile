@@ -96,13 +96,23 @@ pipeline {
                     def masterIp = masterIpRaw.split('\r?\n')[-1].trim()
 
                     withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'TEMP_KEY')]) {
-                        bat "copy /Y \"%TEMP_KEY%\" master_key.pem"
-                        // Using Docker to run Node Exporter on the Master (and/or Workers)
-                        // It needs host network and pid mode to see system metrics properly
-                        def nodeExpCmd = "docker run -d --name node-exporter --net='host' --pid='host' -v '/:/host:ro,rslave' quay.io/prometheus/node-exporter:latest --path.rootfs=/host"
+                        // --- UPDATED PERMISSIONS BLOCK ---
+                    bat """
+                    copy /Y "%TEMP_KEY%" master_key.pem
+                    icacls master_key.pem /reset
+                    icacls master_key.pem /inheritance:r
+                    icacls master_key.pem /grant:r "%USERNAME%":"(R)"
+                    icacls master_key.pem /grant:r SYSTEM:"(R)"
+                    icacls master_key.pem /remove "BUILTIN\\Users"
+                    icacls master_key.pem /remove "Everyone"
+                    """
+
+// Now run the SSH command
+                    def nodeExpCmd = "docker run -d --name node-exporter --net='host' --pid='host' -v '/:/host:ro,rslave' quay.io/prometheus/node-exporter:latest --path.rootfs=/host"
+
+                    bat "ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} \"docker stop node-exporter || true && docker rm node-exporter || true && ${nodeExpCmd}\""
                         
-                        bat "ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} \"docker stop node-exporter || true && docker rm node-exporter || true && ${nodeExpCmd}\""
-                        bat "del master_key.pem"
+                    bat "del master_key.pem"
                     }
                 }
             }
