@@ -57,30 +57,30 @@ pipeline {
             when { expression { params.ACTION == 'apply' } }
             steps {
                 script {
-                    // 1. Get the Master IP
                     def masterIpRaw = bat(script: "terraform -chdir=terraform output -raw master_node_ip", returnStdout: true)
                     def masterIp = masterIpRaw.split('\r?\n')[-1].trim()
 
                     withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'TEMP_KEY')]) {
                         
-                        // 2. Fix Windows Permissions for the .pem key
+                        // 1. Fix Local Windows Permissions
                         bat """
                         copy /Y "%TEMP_KEY%" master_key.pem
-
                         icacls master_key.pem /reset
                         icacls master_key.pem /inheritance:r
                         icacls master_key.pem /remove "BUILTIN\\Users"
                         icacls master_key.pem /remove "Everyone"
-                        icacls master_key.pem /remove "Authenticated Users"
                         icacls master_key.pem /grant:r "%USERNAME%":"(R)"
                         icacls master_key.pem /grant:r SYSTEM:"(R)"
                         """
 
-                        // 3. Upload Playbook, Inventory, and the Master Key itself to the Master Node
-                        // We need the key on the Master so it can talk to the Workers
+                        // 2. THE FIX: Delete existing key on Master if it exists
+                        // This prevents the "Permission denied" error during scp
+                        bat "ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} \"rm -f /home/ec2-user/master_key.pem\""
+
+                        // 3. Upload files
                         bat "scp -i master_key.pem -o StrictHostKeyChecking=no master_key.pem deploy_docker.yml terraform/inventory.ini ec2-user@${masterIp}:/home/ec2-user/"
 
-                        // 4. Run Ansible with Host Key Checking disabled
+                        // 4. Run Ansible
                         bat """
                         ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} ^
                         "sudo yum install -y ansible && ^
