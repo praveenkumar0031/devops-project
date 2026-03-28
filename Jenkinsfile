@@ -117,7 +117,7 @@ pipeline {
                             "sudo systemctl enable docker",
                             "sudo docker stop node-exporter || true",
                             "sudo docker rm node-exporter || true",
-                            "sudo docker run -d --name node-exporter --net='host' --pid='host' -v '/:/host:ro,rslave' quay.io/prometheus/node-exporter:latest --path.rootfs=/host"
+                            "sudo docker run -d --name node-exporter --restart always --net='host' --pid='host' -v '/:/host:ro,rslave' quay.io/prometheus/node-exporter:latest --path.rootfs=/host"
                         ].join(" && ")
 
                         echo "Installing Docker and Node Exporter on Master: ${masterIp}"
