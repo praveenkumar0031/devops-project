@@ -157,8 +157,8 @@ pipeline {
                             "sudo systemctl start docker",
                             "sudo docker stop prometheus grafana || true",
                             "sudo docker rm prometheus grafana || true",
-                            "sudo docker run -d --name prometheus -p 9090:9090 -v /home/ec2-user/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus --config.file=/etc/prometheus/prometheus.yml",
-                            "sudo docker run -d --name grafana -p 3000:3000 --restart always -e 'GF_SECURITY_ADMIN_PASSWORD=admin' grafana/grafana-oss"
+                            "sudo docker run -d --name prometheus --network host -v /home/ec2-user/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus --config.file=/etc/prometheus/prometheus.yml",
+                            "sudo docker run -d --name grafana --network host --restart always -e 'GF_SECURITY_ADMIN_PASSWORD=admin' grafana/grafana-oss"
                         ].join(" && ")
 
                         echo "Launching Prometheus (9090) and Grafana (3000)..."
