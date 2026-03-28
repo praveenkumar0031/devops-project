@@ -34,7 +34,7 @@ data "aws_subnets" "existing_subnets" {
 # 3. The 2 Web Nodes
 resource "aws_instance" "web_nodes" {
   count         = 2
-  ami           = "ami-0c7217cdde317cfec" 
+  ami           = "ami-0c3389a4fa5bddaad"
   instance_type = "t3.micro"
   key_name      = "test" 
   associate_public_ip_address = true
@@ -60,7 +60,7 @@ resource "aws_instance" "web_nodes" {
 
 # 4. The Master Node
 resource "aws_instance" "master_node" {
-  ami           = "ami-0c7217cdde317cfec"
+  ami           = "ami-0c3389a4fa5bddaad"
   instance_type = "t3.small" 
   key_name      = "test" 
   associate_public_ip_address = true
