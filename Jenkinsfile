@@ -81,13 +81,7 @@ pipeline {
                         bat "scp -i master_key.pem -o StrictHostKeyChecking=no master_key.pem deploy_docker.yml terraform/inventory.ini ec2-user@${masterIp}:/home/ec2-user/"
 
                         // 4. Run Ansible
-                        bat """
-                        ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} ^
-                        "sudo yum install -y ansible && ^
-                         chmod 400 master_key.pem && ^
-                         export ANSIBLE_HOST_KEY_CHECKING=False && ^
-                         ansible-playbook -i inventory.ini deploy_docker.yml"
-                        """
+                        bat "ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} \"sudo yum install -y ansible; chmod 400 master_key.pem; export ANSIBLE_HOST_KEY_CHECKING=False; ansible-playbook -i inventory.ini deploy_docker.yml\""
                         
                         bat "del master_key.pem"
                     }
