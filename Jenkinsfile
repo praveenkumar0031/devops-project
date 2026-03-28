@@ -92,32 +92,45 @@ pipeline {
         //     }
         // }
         stage('Connect & Deploy Ansible') {
-    when { expression { params.ACTION == 'apply' } }
-    steps {
-        script {
-            def masterIpRaw = bat(script: "terraform -chdir=terraform output -raw master_node_ip", returnStdout: true)
-            def masterIp = masterIpRaw.split('\r?\n')[-1].trim()
+            when { expression { params.ACTION == 'apply' } }
+            steps {
+                script {
+                    def masterIpRaw = bat(script: "terraform -chdir=terraform output -raw master_node_ip", returnStdout: true)
+                    def masterIp = masterIpRaw.split('\r?\n')[-1].trim()
 
-            withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'TEMP_KEY')]) {
-                bat """
-                copy /Y "%TEMP_KEY%" master_key.pem
-                icacls master_key.pem /reset
-                icacls master_key.pem /grant:r Administrators:(R)
-                """
+                    withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'TEMP_KEY')]) {
+                        
+                        // --- INSERT START ---
+                        bat """
+                        copy /Y "%TEMP_KEY%" master_key.pem
 
-                // Send key and files to Master
-                bat "scp -i master_key.pem -o StrictHostKeyChecking=no master_key.pem deploy_docker.yml terraform/inventory.ini ec2-user@${masterIp}:/home/ec2-user/"
+                        :: Reset and disable inheritance
+                        icacls master_key.pem /reset
+                        icacls master_key.pem /inheritance:r
 
-                // Execute on Master
-                bat """
-                ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} "sudo yum install -y ansible && chmod 400 master_key.pem && ansible-playbook -i inventory.ini deploy_docker.yml"
-                """
-                
-                bat "del master_key.pem"
+                        :: Remove the specific groups SSH is complaining about
+                        icacls master_key.pem /remove "BUILTIN\\Users"
+                        icacls master_key.pem /remove "Everyone"
+                        icacls master_key.pem /remove "Authenticated Users"
+
+                        :: Grant access to the current process user and System
+                        icacls master_key.pem /grant:r "%USERNAME%":"(R)"
+                        icacls master_key.pem /grant:r SYSTEM:"(R)"
+                        """
+                        // --- INSERT END ---
+
+                        // Now the scp command will work because master_key.pem has restricted permissions
+                        bat "scp -i master_key.pem -o StrictHostKeyChecking=no master_key.pem deploy_docker.yml terraform/inventory.ini ec2-user@${masterIp}:/home/ec2-user/"
+
+                        bat """
+                        ssh -i master_key.pem -o StrictHostKeyChecking=no ec2-user@${masterIp} "sudo yum install -y ansible && chmod 400 master_key.pem && ansible-playbook -i inventory.ini deploy_docker.yml"
+                        """
+                        
+                        bat "del master_key.pem"
+                    }
+                }
             }
         }
-    }
-}
     }
 
     post {
